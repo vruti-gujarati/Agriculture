@@ -29,20 +29,23 @@ class _G {
   static const green50  = Color(0xFFF0FAF4);
 }
 
+// ✅ FIXED: All 6 cards have unique colors — mint, light yellow, sky blue, peach, lavender, aqua
 const _cardGradients = <List<Color>>[
-  [Color(0xFFB5DABB), Color(0xFF88C18B)],
-  [Color(0xFFB5DABB), Color(0xFF88C18B)],
-  [Color(0xFFB5DABB), Color(0xFF88C18B)],
-  [Color(0xFFB5DABB), Color(0xFF88C18B)],
-  [Color(0xFFB5DABB), Color(0xFF88C18B)],
+  [Color(0xFFC8F6D8), Color(0xFF9EECC0)], // Plant Guide – Soft mint
+  [Color(0xFFFFFACC), Color(0xFFFFF099)], // Crops – Very light yellow
+  [Color(0xFFC2EAFF), Color(0xFF85CFFF)], // Agri ChatBot – Sky blue
+  [Color(0xFFFFD6C0), Color(0xFFFFB48A)], // 7/12 Record – Soft peach
+  [Color(0xFFE8D5FF), Color(0xFFCFA8FF)], // Calculator – Lavender
+  [Color(0xFFB2F2E8), Color(0xFF6FE0CE)], // Card 6 – Fresh aqua ✅ DIFFERENT
 ];
 
 const _cardAccents = <Color>[
-  Color(0xFF1B5E20),
-  Color(0xFF1B5E20),
-  Color(0xFF1B5E20),
-  Color(0xFF1B5E20),
-  Color(0xFF1B5E20),
+  Color(0xFF1E6B40), // Plant Guide – dark green
+  Color(0xFF6B5200), // Crops – dark amber
+  Color(0xFF1056A0), // ChatBot – dark blue
+  Color(0xFF8B3200), // 7/12 Record – dark orange
+  Color(0xFF4A1A9A), // Calculator – dark purple
+  Color(0xFF0A5C52), // Card 6 – dark teal ✅ DIFFERENT
 ];
 
 class MyHomePage extends StatefulWidget {
@@ -163,7 +166,7 @@ class _MyHomePageState extends State<MyHomePage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _G.green50,
-      drawer: const MenuScreen(), // ✅ ADD THIS
+      drawer: const MenuScreen(),
       body: Stack(
         children: [
           Positioned.fill(child: CustomPaint(painter: _BgPainter())),
@@ -172,7 +175,7 @@ class _MyHomePageState extends State<MyHomePage>
             child: Column(
               children: [
 
-                // ✅ FIXED HEADER (WILL NOT SCROLL)
+                // ✅ FIXED HEADER
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                   child: _buildHeader(),
@@ -189,17 +192,11 @@ class _MyHomePageState extends State<MyHomePage>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 10),
-
                           _buildWeatherCard(),
-
                           const SizedBox(height: 24),
-
                           _buildSectionLabel("Manage Your Fields"),
-
                           const SizedBox(height: 16),
-
                           _buildAllCards(),
-
                           const SizedBox(height: 32),
                         ],
                       ),
@@ -213,6 +210,7 @@ class _MyHomePageState extends State<MyHomePage>
       ),
     );
   }
+
   Widget _buildHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -245,7 +243,7 @@ class _MyHomePageState extends State<MyHomePage>
                 child: Text(
                   "Greenexis",
                   style: TextStyle(
-                    fontSize: 56.sp,
+                    fontSize: 64.sp, // ✅ INCREASED from 56 to 64
                     fontWeight: FontWeight.w900,
                     color: _G.green900,
                     letterSpacing: -1.0,
@@ -272,19 +270,35 @@ class _MyHomePageState extends State<MyHomePage>
                 )),
           ]),
         ]),
+
+        // ✅ ATTRACTIVE MENU BUTTON
         Builder(
           builder: (context) => _PremiumTapCard(
-            onTap: () {
-              Scaffold.of(context).openDrawer();
-            },
-            accentColor: _G.green700, // same theme color
-            child: _glassCircle(
+            onTap: () => Scaffold.of(context).openDrawer(),
+            accentColor: _G.green700,
+            child: Container(
+              width: 43,
+              height: 43,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.55),
+                border: Border.all(
+                  color: _G.green200.withOpacity(0.8),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: _G.green400.withOpacity(0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
               child: const Icon(
                 Icons.menu_rounded,
                 color: _G.green800,
                 size: 22,
               ),
-              size: 46,
             ),
           ),
         ),
@@ -499,12 +513,13 @@ class _MyHomePageState extends State<MyHomePage>
         onTap: () => Navigator.push(context,
             MaterialPageRoute(builder: (_) => const Calculator())),
       ),
+      // ✅ FIXED: Card 6 now uses index [5] not [4] — so color is different!
       _CardItem(
         title: "Agri Calculator",
         subtitle: "Costs & yield",
         imagePath: "assets/home_screen/calculator.png",
-        gradientColors: _cardGradients[4],
-        accentColor: _cardAccents[4],
+        gradientColors: _cardGradients[5], // ✅ was [4], now [5]
+        accentColor: _cardAccents[5],      // ✅ was [4], now [5]
         onTap: () => Navigator.push(context,
             MaterialPageRoute(builder: (_) => const Calculator())),
       ),
@@ -531,7 +546,6 @@ class _MyHomePageState extends State<MyHomePage>
                         : _floatAnim.value * 0.4),
                 child: child,
               ),
-              // ── CHANGED: replaced old _TapScaleCard with new premium one ─
               child: _PremiumTapCard(
                 onTap: items[i].onTap,
                 accentColor: items[i].accentColor,
@@ -544,7 +558,6 @@ class _MyHomePageState extends State<MyHomePage>
     );
   }
 
-  // ── Shell: pure decoration, no GestureDetector (moved to _PremiumTapCard) ─
   Widget _buildCardShell(_CardItem item) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -603,7 +616,6 @@ class _MyHomePageState extends State<MyHomePage>
     );
   }
 
-  // ── _buildCard kept for API compatibility (calls shell now) ──────────────
   Widget _buildCard(_CardItem item, {bool fullWidth = false}) {
     return _PremiumTapCard(
       onTap: item.onTap,
@@ -834,7 +846,6 @@ class _PremiumTapCardState extends State<_PremiumTapCard>
       CurvedAnimation(parent: _ctrl, curve: Curves.easeIn),
     );
 
-    // Glow flashes in fast, fades out slowly — visible even on quick tap
     _glowOpacity = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: 0.35), weight: 25),
       TweenSequenceItem(tween: Tween(begin: 0.35, end: 0.0), weight: 75),
@@ -865,10 +876,8 @@ class _PremiumTapCardState extends State<_PremiumTapCard>
   void _onTapUp(TapUpDetails _) {
     if (!_isPressed) return;
     _isPressed = false;
-
-    widget.onTap(); //
-
-    _ctrl.reverse(); // animation after
+    widget.onTap();
+    _ctrl.reverse();
   }
 
   void _onTapCancel() {
@@ -895,7 +904,6 @@ class _PremiumTapCardState extends State<_PremiumTapCard>
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // ── Card with animated shadow ──────────────────────────
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(26),
@@ -916,7 +924,6 @@ class _PremiumTapCardState extends State<_PremiumTapCard>
                     child: child,
                   ),
 
-                  // ── Glow ripple at tap origin ──────────────────────────
                   if (_glowOpacity.value > 0.001)
                     Positioned.fill(
                       child: ClipRRect(
@@ -931,7 +938,6 @@ class _PremiumTapCardState extends State<_PremiumTapCard>
                       ),
                     ),
 
-                  // ── Border flash on press ──────────────────────────────
                   if (_ctrl.value > 0)
                     Positioned.fill(
                       child: IgnorePointer(
@@ -968,16 +974,13 @@ class _PremiumTapCardState extends State<_PremiumTapCard>
   ];
 }
 
-// ─── Spring-out curve: overshoots 1.0 then settles — bounce feel ─────────────
 class _SpringOutCurve extends Curve {
   @override
   double transformInternal(double t) {
-    // Damped spring: overshoots to ~1.03 at t≈0.55 then returns to 1.0
     return 1.0 - math.exp(-6.5 * t) * math.cos(12.0 * t);
   }
 }
 
-// ─── Glow ripple painter: radial white highlight at tap origin ────────────────
 class _GlowPainter extends CustomPainter {
   final Offset center;
   final double opacity;
@@ -991,9 +994,7 @@ class _GlowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Radius grows to cover ~70% of the card from tap point
     final maxRadius = math.max(size.width, size.height) * 0.70;
-
     final paint = Paint()
       ..shader = RadialGradient(
         colors: [
@@ -1002,7 +1003,6 @@ class _GlowPainter extends CustomPainter {
         ],
         stops: const [0.0, 1.0],
       ).createShader(Rect.fromCircle(center: center, radius: maxRadius));
-
     canvas.drawCircle(center, maxRadius, paint);
   }
 
@@ -1011,7 +1011,6 @@ class _GlowPainter extends CustomPainter {
       old.opacity != opacity || old.center != center;
 }
 
-// ─── Data class (unchanged) ───────────────────────────────────────────────────
 class _CardItem {
   final String title;
   final String subtitle;
@@ -1029,7 +1028,6 @@ class _CardItem {
   });
 }
 
-// ─── Background painter (unchanged) ──────────────────────────────────────────
 class _BgPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -1054,7 +1052,6 @@ class _BgPainter extends CustomPainter {
   bool shouldRepaint(_) => false;
 }
 
-// ─── WeatherStatus widget (unchanged) ────────────────────────────────────────
 class _WeatherStatus extends StatelessWidget {
   final String title;
   final String value;
