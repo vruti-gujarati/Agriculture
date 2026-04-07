@@ -78,6 +78,7 @@ flutter:
     - assets/intro_screen/first.png
     - assets/intro_screen/diseases.png
     - assets/intro_screen/farm.png
+    - assets/intro_screen/young-farmer.jpg
 
 
   # An image asset can refer to one or more resolution-specific "variants", see
