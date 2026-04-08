@@ -3,7 +3,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'intro_screen.dart';
+import '../l10n/app_localizations.dart';
+import 'language_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -115,8 +116,7 @@ class _SplashScreenState extends State<SplashScreen>
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
-            pageBuilder: (_, __, ___) =>
-            const IntroScreen(), // ← changed here
+            pageBuilder: (_, __, ___) => LanguageSelectionScreen(isFromHomeScreen: false,),
             transitionDuration: Duration.zero,
           ),
         );
@@ -390,8 +390,8 @@ class _SplashScreenState extends State<SplashScreen>
                       end:   Alignment((x / bounds.width) * 2 + 1, 0),
                     ).createShader(bounds);
                   },
-                  child: const Text(
-                    "Greenexis",
+                  child: Text(
+                    AppLocalizations.of(context)?.appname ?? "Greenexis",
                     style: TextStyle(
                       fontSize: 46,
                       fontWeight: FontWeight.w900,
@@ -451,8 +451,8 @@ class _SplashScreenState extends State<SplashScreen>
               ],
             ),
             const SizedBox(height: 14),
-            const Text(
-              "Smart Farming Assistant",
+             Text(
+              AppLocalizations.of(context)?.taglinemain ?? "Smart Farming Assistant",
               style: TextStyle(
                 fontSize: 16,
                 color: Color(0xFF40916C),
@@ -461,8 +461,8 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
-              "Grow smarter. Farm better.",
+            Text(
+              AppLocalizations.of(context)?.taglinesub ?? "Grow smarter. Farm better.",
               style: TextStyle(
                 fontSize: 13.5,
                 color: Color(0xFF74C69D),

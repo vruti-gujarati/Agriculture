@@ -1,10 +1,16 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crypto/crypto.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'home_screen.dart';
 import 'signup_screen.dart';
+import '../l10n/app_localizations.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -87,6 +93,116 @@ class _LoginScreenState extends State<LoginScreen>
       transitionDuration: const Duration(milliseconds: 500),
     ));
   }
+
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Encrypt password using SHA256
+  String encryptPassword(String password) {
+    return sha256.convert(utf8.encode(password)).toString();
+  }
+
+  // Email & Password Sign Up
+  // Future<void> signUpWithEmail() async {
+  //   try {
+  //     final email = _phoneCtrl.text.trim();
+  //     final password = _passCtrl.text.trim();
+  //
+  //     if (email.isEmpty || password.isEmpty) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(content: Text('Email and password cannot be empty')),
+  //       );
+  //       return;
+  //     }
+  //
+  //     UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+  //       email: email,
+  //       password: password,
+  //     );
+  //
+  //     // Save user info in Firestore
+  //     await _firestore.collection('users').doc(userCredential.user!.uid).set({
+  //       'email': email,
+  //       'password': encryptPassword(password),
+  //       'name': email.split('@')[0], // default name
+  //     });
+  //
+  //     ScaffoldMessenger.of(context)
+  //         .showSnackBar(SnackBar(content: Text('Sign up successful!')));
+  //   } on FirebaseAuthException catch (e) {
+  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message!)));
+  //   }
+  // }
+
+  // Email & Password Login
+  Future<void> signInWithEmail() async {
+    try {
+      final email = _phoneCtrl.text.trim();
+      final password = _passCtrl.text.trim();
+
+      if (email.isEmpty || password.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Email and password cannot be empty')),
+        );
+        return;
+      }
+
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Login successful!')));
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message!)));
+    }
+  }
+
+  // Google Sign-In
+  Future<void> signInWithGoogle() async {
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+
+      await googleSignIn.initialize();
+
+      // NEW METHOD (v7+)
+      final GoogleSignInAccount googleUser =
+      await googleSignIn.authenticate();
+
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+      );
+
+      UserCredential userCredential =
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      // Store user in Firestore if new
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      if (!doc.exists) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .set({
+          'email': userCredential.user!.email,
+          'name': userCredential.user!.displayName ?? 'No Name',
+          'password': 'google_user',
+          'createdAt': Timestamp.now(),
+        });
+      }
+
+      print("Google Sign-In Successful");
+
+    } catch (e) {
+      print("Error: $e");
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -188,7 +304,8 @@ class _LoginScreenState extends State<LoginScreen>
                   end:   Alignment((x / bounds.width) * 2 + 1, 0),
                 ).createShader(bounds);
               },
-              child: Text("Greenexis",
+              child: Text(
+                  AppLocalizations.of(context)?.appname ??"Greenexis",
                   style: TextStyle(
                     fontSize: size.width * 0.093,
                     fontWeight: FontWeight.w900,
@@ -205,7 +322,8 @@ class _LoginScreenState extends State<LoginScreen>
             const SizedBox(width: 10), _dLine(),
           ]),
           const SizedBox(height: 7),
-          Text("Smart Farming Assistant",
+          Text(
+              AppLocalizations.of(context)?.taglinemain ??"Smart Farming Assistant",
               style: TextStyle(
                 fontSize: size.width * 0.033,
                 color: const Color(0xFF40916C),
@@ -252,38 +370,56 @@ class _LoginScreenState extends State<LoginScreen>
               child: Form(
                 key: _formKey,
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text("Welcome back",
+                  Text(
+                      AppLocalizations.of(context)?.welcome ??"Welcome back",
                       style: TextStyle(
                         fontSize: size.width * 0.063, fontWeight: FontWeight.w800,
                         color: const Color(0xFF1B4332), letterSpacing: -0.5, height: 1.1,
                       )),
                   const SizedBox(height: 4),
-                  Text("Sign in to your farm account",
+                  Text(
+                      AppLocalizations.of(context)?.signinmessage ?? "Sign in to your farm account",
                       style: TextStyle(
                           fontSize: size.width * 0.033,
                           color: const Color(0xFF74C69D))),
 
                   SizedBox(height: size.height * 0.024),
 
-                  _lbl("Phone or Email"),
+                  _lbl(AppLocalizations.of(context)?.phoneemail ??"Phone or Email"),
                   const SizedBox(height: 8),
                   _field(
                     controller: _phoneCtrl, focusNode: _phoneFocus,
-                    hint: "Enter phone or email",
+                    hint: AppLocalizations.of(context)?.phoneemailhint ??"Enter phone or email",
                     icon: Icons.person_outline_rounded,
                     keyboardType: TextInputType.emailAddress,
                     action: TextInputAction.next,
                     onSubmit: (_) => FocusScope.of(context).requestFocus(_passFocus),
-                    validate: (v) => (v == null || v.trim().isEmpty) ? "Required" : null,
+                      validate: (v) {
+                        if (v == null || v.trim().isEmpty) return AppLocalizations.of(context)?.phoneemailerrorrequired ??"Required";
+
+                        final value = v.trim();
+
+                        // Email regex
+                        final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$');
+
+                        // Phone regex (10 digits)
+                        final phoneRegex = RegExp(r'^[0-9]{10}$');
+
+                        if (!emailRegex.hasMatch(value) && !phoneRegex.hasMatch(value)) {
+                          return AppLocalizations.of(context)?.phoneemailerrorinvalid ??"Enter valid email or 10-digit phone";
+                        }
+
+                        return null;
+                      },
                   ),
 
                   SizedBox(height: size.height * 0.017),
 
-                  _lbl("Password"),
+                  _lbl(AppLocalizations.of(context)?.password ??"Password"),
                   const SizedBox(height: 8),
                   _field(
                     controller: _passCtrl, focusNode: _passFocus,
-                    hint: "Enter password",
+                    hint: AppLocalizations.of(context)?.passwordhint ??"Enter password",
                     icon: Icons.lock_outline_rounded,
                     obscure: _obscure,
                     action: TextInputAction.done,
@@ -296,8 +432,8 @@ class _LoginScreenState extends State<LoginScreen>
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                     validate: (v) {
-                      if (v == null || v.isEmpty) return "Required";
-                      if (v.length < 6) return "Minimum 6 characters";
+                      if (v == null || v.isEmpty) return AppLocalizations.of(context)?.passworderrorrequired ??"Password is required";
+                      if (v.length < 6) return AppLocalizations.of(context)?.passworderrormin ??"Minimum 6 characters";
                       return null;
                     },
                   ),
@@ -325,7 +461,8 @@ class _LoginScreenState extends State<LoginScreen>
                               : null,
                         ),
                         const SizedBox(width: 8),
-                        Text("Remember me",
+                        Text(
+                            AppLocalizations.of(context)?.rememberme ??"Remember me",
                             style: TextStyle(
                                 fontSize: size.width * 0.031,
                                 color: const Color(0xFF40916C),
@@ -334,7 +471,8 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     GestureDetector(
                       onTap: () {},
-                      child: Text("Forgot password?",
+                      child: Text(
+                          AppLocalizations.of(context)?.forgotpassword ??"Forgot password?",
                           style: TextStyle(
                               fontSize: size.width * 0.031,
                               color: const Color(0xFF2D6A4F),
@@ -356,7 +494,8 @@ class _LoginScreenState extends State<LoginScreen>
                             colors: [Colors.transparent, const Color(0xFFB7E4C7).withOpacity(0.7)])))),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text("or continue with",
+                      child: Text(
+                          AppLocalizations.of(context)?.orcontinuewith ??"or continue with",
                           style: TextStyle(
                               fontSize: size.width * 0.030,
                               color: const Color(0xFF74C69D).withOpacity(0.9),
@@ -389,16 +528,22 @@ class _LoginScreenState extends State<LoginScreen>
                         transitionDuration: const Duration(milliseconds: 400),
                       )),
                       child: RichText(
-                        text: TextSpan(
-                          style: TextStyle(
-                              fontSize: size.width * 0.033, color: const Color(0xFF74C69D)),
-                          children: const [
-                            TextSpan(text: "New farmer?  "),
-                            TextSpan(text: "Create account →",
-                                style: TextStyle(
-                                    color: Color(0xFF2D6A4F), fontWeight: FontWeight.w700)),
+                        text: // ✅ Correct: Remove 'const' so the text can update
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: "${AppLocalizations.of(context)?.newuser ?? "New farmer?"} ",
+                              style: TextStyle(color: Colors.grey[600]), // Example style
+                            ),
+                            TextSpan(
+                              text: AppLocalizations.of(context)?.createaccount ?? "Create account →",
+                              style: const TextStyle(
+                                color: Color(0xFF2D6A4F),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ],
-                        ),
+                        )
                       ),
                     ),
                   ),
@@ -492,7 +637,7 @@ class _LoginScreenState extends State<LoginScreen>
                 : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               const Icon(Icons.login_rounded, color: Colors.white, size: 20),
               const SizedBox(width: 10),
-              Text("Login", style: TextStyle(
+              Text( AppLocalizations.of(context)?.login ??"Login", style: TextStyle(
                   fontSize: size.width * 0.043, fontWeight: FontWeight.w700,
                   color: Colors.white, letterSpacing: 0.4)),
             ]),
@@ -503,7 +648,7 @@ class _LoginScreenState extends State<LoginScreen>
   );
 
   Widget _googleBtn(Size size) => GestureDetector(
-    onTap: () {},
+    onTap: () {signInWithGoogle();},
     child: Container(
       height: size.height * 0.063,
       decoration: BoxDecoration(
@@ -513,9 +658,15 @@ class _LoginScreenState extends State<LoginScreen>
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        SizedBox(width: 22, height: 22, child: CustomPaint(painter: _GoogleLogo())),
+        SizedBox(
+            width: 22,
+            height: 22,
+            child: CustomPaint(painter: _GoogleLogo()
+            )
+        ),
         const SizedBox(width: 10),
-        Text("Continue with Google",
+        Text(
+            AppLocalizations.of(context)?.googlelogin ??"Continue with Google",
             style: TextStyle(
                 fontSize: size.width * 0.036, fontWeight: FontWeight.w600,
                 color: const Color(0xFF2D6A4F))),
@@ -552,26 +703,46 @@ class _LoginScreenState extends State<LoginScreen>
 class _GoogleLogo extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2, cy = size.height / 2, r = size.width / 2;
-    canvas.drawCircle(Offset(cx, cy), r, Paint()..color = Colors.white);
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
 
-    final rect = Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.85);
-    final sw = r * 0.28;
+    final strokeWidth = radius * 0.32;
 
-    void arc(double start, double sweep, Color color) =>
-        canvas.drawArc(rect, start, sweep, false,
-            Paint()..color = color..strokeWidth = sw
-              ..style = PaintingStyle.stroke..strokeCap = StrokeCap.butt);
+    final rect = Rect.fromCircle(center: center, radius: radius * 0.75);
 
-    arc(-0.35, 1.75, const Color(0xFF4285F4));
-    arc(math.pi + 0.25, 1.18, const Color(0xFFEA4335));
-    arc(-0.35, 0.45, const Color(0xFFFBBC05));
-    arc(math.pi * 0.85, 0.78, const Color(0xFF34A853));
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
 
-    canvas.drawLine(Offset(cx, cy), Offset(cx + r * 0.82, cy),
-        Paint()..color = const Color(0xFF4285F4)..strokeWidth = sw..strokeCap = StrokeCap.round);
+    // Blue
+    paint.color = const Color(0xFF4285F4);
+    canvas.drawArc(rect, -0.4, 1.6, false, paint);
+
+    // Red
+    paint.color = const Color(0xFFEA4335);
+    canvas.drawArc(rect, 1.2, 1.2, false, paint);
+
+    // Yellow
+    paint.color = const Color(0xFFFBBC05);
+    canvas.drawArc(rect, 2.4, 1.0, false, paint);
+
+    // Green
+    paint.color = const Color(0xFF34A853);
+    canvas.drawArc(rect, 3.3, 1.8, false, paint);
+
+    // Horizontal line
+    paint.color = const Color(0xFF4285F4);
+
+    canvas.drawLine(
+      Offset(center.dx, center.dy),
+      Offset(center.dx + radius * 0.7, center.dy),
+      paint..strokeWidth = strokeWidth * 0.9,
+    );
   }
-  @override bool shouldRepaint(_GoogleLogo o) => false;
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
 // ── Background Painter ────────────────────────────────────────────────────────

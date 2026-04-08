@@ -189,7 +189,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _G.bg,
-      drawer: const MenuScreen(),
+      drawer: MenuScreen(),
       body: Stack(
         children: [
           // ── Leaf particle background (matching splash) ──

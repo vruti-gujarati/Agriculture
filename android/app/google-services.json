@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "302558792004",
+    "project_id": "greenexis-2826d",
+    "storage_bucket": "greenexis-2826d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:302558792004:android:859751ec454eedc86bef11",
+        "android_client_info": {
+          "package_name": "com.example.agriculture"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "302558792004-04jjbgc9vlafe4mjuu3dad2iv07mh3t1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.agriculture",
+            "certificate_hash": "bef6a1da29f53ffeab5780ab4f9f986a9e4af673"
+          }
+        },
+        {
+          "client_id": "302558792004-oi2hup2n8rk4n4het4e24p2dipd6qtg7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCDrPTHNPhpbbPDMhgr2RkPMaEgoLgWmkM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "302558792004-oi2hup2n8rk4n4het4e24p2dipd6qtg7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
