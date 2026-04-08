@@ -175,38 +175,14 @@ abstract class AppLocalizations {
   /// No description provided for @titleone.
   ///
   /// In en, this message translates to:
-  /// **'The Next Generation of Farming'**
+  /// **'The Next Generation\nof Farming'**
   String get titleone;
 
   /// No description provided for @descriptionone.
   ///
   /// In en, this message translates to:
-  /// **'We provide smart data that enables the goals of modern global agriculture.'**
+  /// **'We provide smart data that enables the goals of modern global agriculture — from soil health to yield optimization, all in one place.'**
   String get descriptionone;
-
-  /// No description provided for @titletwo.
-  ///
-  /// In en, this message translates to:
-  /// **'Detect Crop Diseases Easily'**
-  String get titletwo;
-
-  /// No description provided for @descriptiontwo.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan your plant using the camera and identify diseases instantly with AI.'**
-  String get descriptiontwo;
-
-  /// No description provided for @titlethree.
-  ///
-  /// In en, this message translates to:
-  /// **'Track Your Farm Health'**
-  String get titlethree;
-
-  /// No description provided for @descriptionthree.
-  ///
-  /// In en, this message translates to:
-  /// **'Monitor crops and keep a full history of all issues and treatments.'**
-  String get descriptionthree;
 
   /// No description provided for @smartfarming.
   ///
@@ -214,16 +190,40 @@ abstract class AppLocalizations {
   /// **'Smart Farming'**
   String get smartfarming;
 
+  /// No description provided for @titletwo.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect Crop Diseases\nEasily'**
+  String get titletwo;
+
+  /// No description provided for @descriptiontwo.
+  ///
+  /// In en, this message translates to:
+  /// **'Point your camera at any plant and get instant AI-powered disease detection. Identify 200+ crop diseases early and receive personalized treatment tips.'**
+  String get descriptiontwo;
+
   /// No description provided for @aiscanner.
   ///
   /// In en, this message translates to:
   /// **'AI Scanner'**
   String get aiscanner;
 
+  /// No description provided for @titlethree.
+  ///
+  /// In en, this message translates to:
+  /// **'Track Your Farm\n& Grow Smarter'**
+  String get titlethree;
+
+  /// No description provided for @descriptionthree.
+  ///
+  /// In en, this message translates to:
+  /// **'View all your farm analytics in one beautiful dashboard. Track moisture, temperature, humidity and yield trends to make smarter decisions every season.'**
+  String get descriptionthree;
+
   /// No description provided for @farmhealth.
   ///
   /// In en, this message translates to:
-  /// **'Farm Health'**
+  /// **'Dashboard'**
   String get farmhealth;
 
   /// No description provided for @skip.

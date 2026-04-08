@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
+import '../l10n/app_localizations.dart';
 import 'login_screen.dart';
 
 class IntroScreen extends StatefulWidget {
@@ -45,33 +45,33 @@ class _IntroScreenState extends State<IntroScreen>
   late Animation<double> _waterAnim;
   late Animation<double> _growAnim;
 
-  // ── Slide data ─────────────────────────────────────────────────────────────
-  static const _slides = [
-    _SlideData(
-      title: 'The Next Generation\nof Farming',
-      description:
-      'We provide smart data that enables the goals of modern global agriculture — from soil health to yield optimization, all in one place.',
-      badge: 'Smart Farming',
-      badgeIcon: Icons.location_on_rounded,
-      illustType: _IllustType.farm,
-    ),
-    _SlideData(
-      title: 'Detect Crop Diseases\nEasily',
-      description:
-      'Point your camera at any plant and get instant AI-powered disease detection. Identify 200+ crop diseases early and receive personalized treatment tips.',
-      badge: 'AI Scanner',
-      badgeIcon: Icons.search_rounded,
-      illustType: _IllustType.scanner,
-    ),
-    _SlideData(
-      title: 'Track Your Farm\n& Grow Smarter',
-      description:
-      'View all your farm analytics in one beautiful dashboard. Track moisture, temperature, humidity and yield trends to make smarter decisions every season.',
-      badge: 'Dashboard',
-      badgeIcon: Icons.bar_chart_rounded,
-      illustType: _IllustType.dashboard,
-    ),
-  ];
+  // // ── Slide data ─────────────────────────────────────────────────────────────
+  // static const _slides = [
+  //   _SlideData(
+  //     title: AppLocalizations.of(context)?.titleone ?? 'The Next Generation\nof Farming',
+  //     description:
+  //     AppLocalizations.of(context)?.descriptionone ?? 'We provide smart data that enables the goals of modern global agriculture — from soil health to yield optimization, all in one place.',
+  //     badge: AppLocalizations.of(context)?.smartfarming ?? 'Smart Farming',
+  //     badgeIcon: Icons.location_on_rounded,
+  //     illustType: _IllustType.farm,
+  //   ),
+  //   _SlideData(
+  //     title: 'Detect Crop Diseases\nEasily',
+  //     description:
+  //     'Point your camera at any plant and get instant AI-powered disease detection. Identify 200+ crop diseases early and receive personalized treatment tips.',
+  //     badge: 'AI Scanner',
+  //     badgeIcon: Icons.search_rounded,
+  //     illustType: _IllustType.scanner,
+  //   ),
+  //   _SlideData(
+  //     title: 'Track Your Farm\n& Grow Smarter',
+  //     description:
+  //     'View all your farm analytics in one beautiful dashboard. Track moisture, temperature, humidity and yield trends to make smarter decisions every season.',
+  //     badge: 'Dashboard',
+  //     badgeIcon: Icons.bar_chart_rounded,
+  //     illustType: _IllustType.dashboard,
+  //   ),
+  // ];
 
   @override
   void initState() {
@@ -195,6 +195,31 @@ class _IntroScreenState extends State<IntroScreen>
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
+    // Create the list here so it can use 'context'
+    final List<_SlideData> localizedSlides = [
+      _SlideData(
+        title: AppLocalizations.of(context)?.titleone ?? 'The Next Generation\nof Farming',
+        description: AppLocalizations.of(context)?.descriptionone ?? 'We provide smart data...',
+        badge: AppLocalizations.of(context)?.smartfarming ?? 'Smart Farming',
+        badgeIcon: Icons.location_on_rounded,
+        illustType: _IllustType.farm,
+      ),
+      _SlideData(
+        title: AppLocalizations.of(context)?.titletwo ?? 'Detect Crop Diseases\nEasily',
+        description: AppLocalizations.of(context)?.descriptiontwo ?? 'Point your camera at any plant...',
+        badge: AppLocalizations.of(context)?.aiscanner ?? 'AI Scanner',
+        badgeIcon: Icons.search_rounded,
+        illustType: _IllustType.scanner,
+      ),
+      _SlideData(
+        title: AppLocalizations.of(context)?.titlethree ?? 'Track Your Farm\n& Grow Smarter',
+        description: AppLocalizations.of(context)?.descriptionthree ?? 'View all your farm analytics...',
+        badge: AppLocalizations.of(context)?.farmhealth ?? 'Dashboard',
+        badgeIcon: Icons.bar_chart_rounded,
+        illustType: _IllustType.dashboard,
+      ),
+    ];
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: AnimatedBuilder(
@@ -203,53 +228,9 @@ class _IntroScreenState extends State<IntroScreen>
         child: Scaffold(
           backgroundColor: const Color(0xFFF2FAF4),
           body: Stack(children: [
+            // ... (Your Painter widgets here) ...
 
-            // 1. Watercolor blobs
-            AnimatedBuilder(animation: _bgFloat,
-                builder: (_, __) => CustomPaint(size: size,
-                    painter: _WatercolorBgPainter(_bgFloat.value))),
-
-            // 2. Floating leaves
-            AnimatedBuilder(animation: _leafCtrl,
-                builder: (_, __) => CustomPaint(size: size,
-                    painter: _FloatingLeafPainter(_leafCtrl.value))),
-
-            // 3. Farm ambient particles
-            AnimatedBuilder(animation: _farmAnim,
-                builder: (_, __) => CustomPaint(size: size,
-                    painter: _FarmParticlePainter(_farmAnim.value, _growAnim.value))),
-
-            // 4. Skip button
-            SafeArea(
-              child: Align(
-                alignment: Alignment.topRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 16, right: 20),
-                  child: _currentPage < _totalPages - 1
-                      ? GestureDetector(
-                    onTap: _onSkip,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.55),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: const Color(0xFF74C69D).withOpacity(0.4),
-                            width: 1),
-                      ),
-                      child: const Text('Skip',
-                          style: TextStyle(fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF2D6A4F))),
-                    ),
-                  )
-                      : const SizedBox.shrink(),
-                ),
-              ),
-            ),
-
-            // 5. PageView
+            // UPDATE: Use 'localizedSlides' instead of '_slides'
             PageView.builder(
               controller: _pageCtrl,
               itemCount: _totalPages,
@@ -257,10 +238,9 @@ class _IntroScreenState extends State<IntroScreen>
                 setState(() => _currentPage = i);
                 _playPageEntry();
               },
-              itemBuilder: (_, i) => _buildPage(_slides[i], size),
+              itemBuilder: (_, i) => _buildPage(localizedSlides[i], size),
             ),
 
-            // 6. Bottom controls
             _buildBottomControls(size),
           ]),
         ),
@@ -578,7 +558,7 @@ class _IntroScreenState extends State<IntroScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _currentPage == _totalPages - 1 ? 'Get Started' : 'Next',
+                      _currentPage == _totalPages - 1 ? AppLocalizations.of(context)?.getstarted ??'Get Started' : AppLocalizations.of(context)?.next ?? 'Next',
                       style: const TextStyle(
                           color: Colors.white, fontSize: 16,
                           fontWeight: FontWeight.w700, letterSpacing: 0.4),
@@ -726,22 +706,66 @@ class _FarmingIllustPainter extends CustomPainter {
   }
 
   void _tractor(Canvas canvas, double x, double y) {
-    // Round body
-    canvas.drawCircle(Offset(x, y - 6), 18,
-        Paint()..color = const Color(0xFF2D6A4F));
-    // Round cabin
-    canvas.drawCircle(Offset(x + 6, y - 20), 10,
-        Paint()..color = const Color(0xFF1B4332));
-    // Cabin window
-    canvas.drawCircle(Offset(x + 6, y - 20), 6,
-        Paint()..color = Colors.white.withOpacity(0.55));
-    canvas.drawCircle(Offset(x-10, y+4), 10, Paint()..color = const Color(0xFF1B4332));
-    canvas.drawCircle(Offset(x-10, y+4), 7,  Paint()..color = const Color(0xFF40916C));
-    canvas.drawCircle(Offset(x+12, y+4), 6,  Paint()..color = const Color(0xFF1B4332));
-    canvas.drawCircle(Offset(x+12, y+4), 4,  Paint()..color = const Color(0xFF40916C));
-    canvas.drawCircle(Offset(x+16, y-26),
-        3 + 2*math.sin(farmT*math.pi*4),
-        Paint()..color = Colors.white.withOpacity(0.38));
+    final body = Paint()..color = const Color(0xFF2D6A4F);
+    final dark = Paint()..color = const Color(0xFF1B4332);
+    final light = Paint()..color = const Color(0xFF74C69D);
+
+    // --- MAIN BODY (long rectangle) ---
+    canvas.drawRect(
+      Rect.fromLTWH(x - 18, y - 14, 28, 12),
+      body,
+    );
+
+    // --- FRONT HOOD (small rectangle) ---
+    canvas.drawRect(
+      Rect.fromLTWH(x + 10, y - 12, 14, 10),
+      body,
+    );
+
+    // --- CABIN (square) ---
+    canvas.drawRect(
+      Rect.fromLTWH(x - 2, y - 26, 14, 12),
+      dark,
+    );
+
+    // --- WINDOW (small square) ---
+    canvas.drawRect(
+      Rect.fromLTWH(x + 1, y - 23, 8, 7),
+      Paint()..color = Colors.white.withOpacity(0.7),
+    );
+
+    // --- EXHAUST PIPE (thin rectangle) ---
+    canvas.drawRect(
+      Rect.fromLTWH(x + 12, y - 30, 2, 6),
+      dark,
+    );
+
+    // --- BACK WHEEL (big circle) ---
+    canvas.drawCircle(Offset(x - 10, y + 4), 11, dark);
+    canvas.drawCircle(Offset(x - 10, y + 4), 5, light);
+
+    // --- FRONT WHEEL (small circle) ---
+    canvas.drawCircle(Offset(x + 18, y + 4), 6, dark);
+    canvas.drawCircle(Offset(x + 18, y + 4), 2.8, light);
+
+    // --- BODY CONNECTOR (gives structure like real tractor) ---
+    canvas.drawRect(
+      Rect.fromLTWH(x - 2, y - 14, 12, 4),
+      dark,
+    );
+
+    // --- ENGINE DETAIL (small square for realism) ---
+    canvas.drawRect(
+      Rect.fromLTWH(x + 14, y - 10, 4, 4),
+      dark,
+    );
+
+    // --- SUBTLE ANIMATION HIGHLIGHT ---
+    canvas.drawCircle(
+      Offset(x + 14, y - 20),
+      2 + 1.5 * math.sin(farmT * math.pi * 4),
+      Paint()..color = Colors.white.withOpacity(0.3),
+    );
   }
 
   // ── Scene 2: AI Scanner ────────────────────────────────────────────────────

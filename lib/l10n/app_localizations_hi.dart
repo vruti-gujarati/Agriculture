@@ -45,34 +45,34 @@ class AppLocalizationsHi extends AppLocalizations {
   String get gujarati => 'गुजराती';
 
   @override
-  String get titleone => 'खेती की अगली पीढ़ी';
+  String get titleone => 'खेती की अगली\nपीढ़ी';
 
   @override
   String get descriptionone =>
-      'हम स्मार्ट डेटा प्रदान करते हैं जो आधुनिक वैश्विक कृषि के लक्ष्यों को सक्षम बनाता है।';
-
-  @override
-  String get titletwo => 'फसल रोगों का आसानी से पता लगाएं';
-
-  @override
-  String get descriptiontwo =>
-      'कैमरे का उपयोग करके अपने पौधे को स्कैन करें और AI के साथ तुरंत बीमारियों की पहचान करें।';
-
-  @override
-  String get titlethree => 'अपने खेत के स्वास्थ्य को ट्रैक करें';
-
-  @override
-  String get descriptionthree =>
-      'फसलों की निगरानी करें और सभी समस्याओं और उपचारों का पूरा इतिहास रखें।';
+      'हम स्मार्ट डेटा प्रदान करते हैं जो आधुनिक वैश्विक कृषि के लक्ष्यों को सक्षम बनाता है - मिट्टी के स्वास्थ्य से लेकर उपज के अनुकूलन तक, सब कुछ एक ही स्थान पर।';
 
   @override
   String get smartfarming => 'स्मार्ट खेती';
 
   @override
+  String get titletwo => 'फसल रोगों का\nआसानी से पता लगाएं';
+
+  @override
+  String get descriptiontwo =>
+      'किसी भी पौधे पर अपना कैमरा घुमाएँ और तुरंत AI-आधारित बीमारी का पता लगाएं। 200+ फसल रोगों की जल्दी पहचान करें और उपचार के सुझाव प्राप्त करें।';
+
+  @override
   String get aiscanner => 'AI स्कैनर';
 
   @override
-  String get farmhealth => 'खेत का स्वास्थ्य';
+  String get titlethree => 'अपने खेत को ट्रैक करें\nऔर स्मार्ट बनें';
+
+  @override
+  String get descriptionthree =>
+      'एक शानदार डैशबोर्ड में अपने सभी फार्म एनालिटिक्स देखें। हर सीजन में बेहतर निर्णय लेने के लिए नमी, तापमान और उपज के रुझान को ट्रैक करें।';
+
+  @override
+  String get farmhealth => 'डैशबोर्ड';
 
   @override
   String get skip => 'छोड़ें';

@@ -81,20 +81,60 @@ class _LoginScreenState extends State<LoginScreen>
 
   void _handleLogin() async {
     FocusScope.of(context).unfocus();
+
     if (!_formKey.currentState!.validate()) return;
+
     setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 1800));
-    if (!mounted) return;
-    setState(() => _loading = false);
-    Navigator.of(context).pushReplacement(PageRouteBuilder(
-      pageBuilder: (_, __, ___) => MyHomePage(title: "Home"),
-      transitionsBuilder: (_, anim, __, child) =>
-          FadeTransition(opacity: anim, child: child),
-      transitionDuration: const Duration(milliseconds: 500),
-    ));
+
+    final email = _phoneCtrl.text.trim();
+    final password = _passCtrl.text.trim();
+
+    try {
+      // ✅ STEP 1: Check email exists in Firestore
+      final query = await _firestore
+          .collection("users")
+          .where("email", isEqualTo: email)
+          .get();
+
+      if (query.docs.isEmpty) {
+        // ❌ EMAIL NOT FOUND
+        setState(() => _loading = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("No account found with this email. Please sign up first."),
+          ),
+        );
+        return;
+      }
+
+      // ✅ STEP 2: Email exists → try login
+      await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // ✅ SUCCESS
+      setState(() => _loading = false);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MyHomePage(title: "Home"),
+        ),
+      );
+
+    } on FirebaseAuthException catch (e) {
+      setState(() => _loading = false);
+
+      // 🔥 IMPORTANT: Since email EXISTS, ANY error = WRONG PASSWORD
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Incorrect password. Please try again."),
+        ),
+      );
+    }
   }
-
-
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -197,6 +237,12 @@ class _LoginScreenState extends State<LoginScreen>
       }
 
       print("Google Sign-In Successful");
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MyHomePage(title: "Home"),
+        ),
+      );
 
     } catch (e) {
       print("Error: $e");
@@ -394,23 +440,17 @@ class _LoginScreenState extends State<LoginScreen>
                     keyboardType: TextInputType.emailAddress,
                     action: TextInputAction.next,
                     onSubmit: (_) => FocusScope.of(context).requestFocus(_passFocus),
-                      validate: (v) {
-                        if (v == null || v.trim().isEmpty) return AppLocalizations.of(context)?.phoneemailerrorrequired ??"Required";
+                    validate: (v) {
+                      if (v == null || v.trim().isEmpty) return "Email is required";
 
-                        final value = v.trim();
+                      final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$');
 
-                        // Email regex
-                        final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$');
+                      if (!emailRegex.hasMatch(v.trim())) {
+                        return "Enter valid email";
+                      }
 
-                        // Phone regex (10 digits)
-                        final phoneRegex = RegExp(r'^[0-9]{10}$');
-
-                        if (!emailRegex.hasMatch(value) && !phoneRegex.hasMatch(value)) {
-                          return AppLocalizations.of(context)?.phoneemailerrorinvalid ??"Enter valid email or 10-digit phone";
-                        }
-
-                        return null;
-                      },
+                      return null;
+                    },
                   ),
 
                   SizedBox(height: size.height * 0.017),

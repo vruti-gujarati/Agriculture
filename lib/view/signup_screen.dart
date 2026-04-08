@@ -2,9 +2,11 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 
 import 'home_screen.dart';
 import 'login_screen.dart';
@@ -20,27 +22,23 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen>
     with TickerProviderStateMixin {
 
-  // ── Firebase instances ──────────────────────────────────────────────────
-  final _auth      = FirebaseAuth.instance;
-  final _firestore = FirebaseFirestore.instance;
-  final _googleSignIn = GoogleSignIn.instance;
-  bool _isGoogleSignInInitialized = false;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   late AnimationController _bgCtrl, _entryCtrl, _leafCtrl, _glowCtrl, _shimmerCtrl;
   late Animation<double> _bgFloat, _logoFade, _cardFade, _glowPulse;
   late Animation<Offset> _logoSlide, _cardSlide;
 
-  final _formKey   = GlobalKey<FormState>();
-  final _nameCtrl  = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _passCtrl  = TextEditingController();
-  final _cpassCtrl = TextEditingController();
+  final _formKey    = GlobalKey<FormState>();
+  final _nameCtrl   = TextEditingController();
+  final _phoneCtrl  = TextEditingController();
+  final _emailCtrl  = TextEditingController();
+  final _passCtrl   = TextEditingController();
+  final _cpassCtrl  = TextEditingController();
 
   bool _obscurePass  = true;
   bool _obscureCPass = true;
   bool _loading      = false;
-  bool _googleLoading = false;
   bool _agreeTerms   = false;
 
   final _nameFocus  = FocusNode();
@@ -49,16 +47,18 @@ class _SignupScreenState extends State<SignupScreen>
   final _passFocus  = FocusNode();
   final _cpassFocus = FocusNode();
 
-  String _selectedFarm = "Crop Farming";
-  final _farmTypes = [
-    "Crop Farming", "Dairy Farming", "Poultry", "Horticulture", "Mixed Farming"
-  ];
+  String encryptPassword(String password) {
+    final bytes = utf8.encode(password);
+    return sha256.convert(bytes).toString();
+  }
+
+  // Farm type selection
+
 
   @override
   void initState() {
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
-    _initGoogleSignIn();
 
     _bgCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 4000))
       ..repeat(reverse: true);
@@ -100,205 +100,69 @@ class _SignupScreenState extends State<SignupScreen>
     super.dispose();
   }
 
-
-  Future<void> _initGoogleSignIn() async {
-    try {
-      await _googleSignIn.initialize(
-        serverClientId: '302558792004-04jjbgc9vlafe4mjuu3dad2iv07mh3t1.apps.googleusercontent.com', // paste it here
-      );
-      _isGoogleSignInInitialized = true;
-    } catch (e) {
-      debugPrint('GoogleSignIn init failed: $e');
-    }
-  }
-  // ── Save user to Firestore ──────────────────────────────────────────────
-  Future<void> _saveUserToFirestore({
-    required String uid,
-    required String name,
-    required String email,
-    required String phone,
-    required String farmType,
-    required String signupMethod, // 'email' or 'google'
-  }) async {
-    await _firestore.collection('users').doc(uid).set({
-      'uid':          uid,
-      'name':         name,
-      'email':        email,
-      'phone':        phone,
-      'farmType':     farmType,
-      'signupMethod': signupMethod,
-      'createdAt':    FieldValue.serverTimestamp(),
-      'updatedAt':    FieldValue.serverTimestamp(),
-    });
-  }
-
-  // ── Navigate to home ────────────────────────────────────────────────────
-  void _goHome() {
-    Navigator.of(context).pushAndRemoveUntil(
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => MyHomePage(title: "Home"),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 500),
-      ),
-          (route) => false,
-    );
-  }
-
-  // ── Show error snackbar ─────────────────────────────────────────────────
-  void _showError(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: const Color(0xFFB74343),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  void _showSuccess(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: const Color(0xFF2D6A4F),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  // ── Email / Password Sign Up ────────────────────────────────────────────
   void _handleSignup() async {
     FocusScope.of(context).unfocus();
+
     if (!_formKey.currentState!.validate()) return;
-    if (!_agreeTerms) {
-      _showError("Please agree to the Terms & Conditions");
-      return;
-    }
 
-    setState(() => _loading = true);
     try {
-      // 1. Create Firebase Auth account
-      final credential = await _auth.createUserWithEmailAndPassword(
+      setState(() => _loading = true);
+
+      // 🔹 Create user in Firebase Auth
+      UserCredential userCredential =
+      await _auth.createUserWithEmailAndPassword(
         email: _emailCtrl.text.trim(),
-        password: _passCtrl.text,
+        password: _passCtrl.text.trim(),
       );
 
-      final user = credential.user!;
+      String uid = userCredential.user!.uid;
 
-      // 2. Update display name in Firebase Auth
-      await user.updateDisplayName(_nameCtrl.text.trim());
+      // 🔹 Encrypt password
+      String encryptedPass = encryptPassword(_passCtrl.text.trim());
 
-      // 3. Save user details to Firestore
-      await _saveUserToFirestore(
-        uid:          user.uid,
-        name:         _nameCtrl.text.trim(),
-        email:        _emailCtrl.text.trim(),
-        phone:        _phoneCtrl.text.trim(),
-        farmType:     _selectedFarm,
-        signupMethod: 'email',
+      // 🔹 Store in Firestore
+      await _firestore.collection("users").doc(uid).set({
+        "uid": uid,
+        "name": _nameCtrl.text.trim(),
+        "email": _emailCtrl.text.trim(),
+        "password": encryptedPass,
+        "createdAt": FieldValue.serverTimestamp(),
+      });
+
+      print("✅ User saved in Firestore");
+
+      setState(() => _loading = false);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => MyHomePage(title: "Home")),
       );
-
-      _showSuccess("Account created successfully!");
-      _goHome();
 
     } on FirebaseAuthException catch (e) {
-      String msg;
-      switch (e.code) {
-        case 'email-already-in-use':
-          msg = "This email is already registered.";
-          break;
-        case 'weak-password':
-          msg = "Password is too weak.";
-          break;
-        case 'invalid-email':
-          msg = "Invalid email address.";
-          break;
-        case 'network-request-failed':
-          msg = "Network error. Please check your connection.";
-          break;
-        default:
-          msg = e.message ?? "Signup failed. Please try again.";
+      setState(() => _loading = false);
+
+      print("❌ Auth Error: ${e.code}");
+
+      String message = "Signup failed";
+
+      if (e.code == 'email-already-in-use') {
+        message = "Email already exists";
+      } else if (e.code == 'weak-password') {
+        message = "Weak password";
       }
-      _showError(msg);
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+
     } catch (e) {
-      _showError("An unexpected error occurred.");
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      setState(() => _loading = false);
+
+      print("❌ Firestore Error: $e");
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Database error")));
     }
   }
-
-  // ── Google Sign Up ──────────────────────────────────────────────────────
-  void _handleGoogleSignup() async {
-    FocusScope.of(context).unfocus();
-    setState(() => _googleLoading = true);
-
-    try {
-      if (!_isGoogleSignInInitialized) await _initGoogleSignIn();
-
-      // Step 1: Authenticate (gets identity / idToken)
-      final googleUser = await _googleSignIn.authenticate(
-        scopeHint: ['email', 'profile'],
-      );
-
-      // Step 2: Authorize scopes (gets accessToken — required in v7)
-      final clientAuth = await googleUser.authorizationClient
-          .authorizeScopes(['email', 'profile']);
-
-      // Step 3: Build Firebase credential using BOTH tokens
-      final credential = GoogleAuthProvider.credential(
-        idToken:     googleUser.authentication.idToken,
-        accessToken: clientAuth.accessToken,
-      );
-
-      // Step 4: Sign in to Firebase
-      final userCredential = await _auth.signInWithCredential(credential);
-      final user = userCredential.user!;
-
-      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
-
-      if (isNewUser) {
-        await _saveUserToFirestore(
-          uid:          user.uid,
-          name:         user.displayName ?? '',
-          email:        user.email ?? '',
-          phone:        user.phoneNumber ?? '',
-          farmType:     'Not specified',
-          signupMethod: 'google',
-        );
-        _showSuccess("Account created with Google!");
-      } else {
-        _showSuccess("Welcome back!");
-      }
-
-      _goHome();
-
-    } on GoogleSignInException catch (e) {
-      _showError("Google sign-in failed: ${e.description ?? e.code.name}");
-    } on FirebaseAuthException catch (e) {
-      String msg;
-      switch (e.code) {
-        case 'account-exists-with-different-credential':
-          msg = "An account with this email already exists.";
-          break;
-        case 'network-request-failed':
-          msg = "Network error. Please check your connection.";
-          break;
-        default:
-          msg = e.message ?? "Google sign-in failed.";
-      }
-      _showError(msg);
-    } catch (e) {
-      _showError("Google sign-in failed. Please try again.");
-    } finally {
-      if (mounted) setState(() => _googleLoading = false);
-    }
-  }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -349,7 +213,8 @@ class _SignupScreenState extends State<SignupScreen>
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                   child: Container(
-                    width: 42, height: 42,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.55),
                       borderRadius: BorderRadius.circular(14),
@@ -357,13 +222,19 @@ class _SignupScreenState extends State<SignupScreen>
                         color: const Color(0xFFB7E4C7).withOpacity(0.9),
                         width: 1.2,
                       ),
-                      boxShadow: [BoxShadow(
-                        color: const Color(0xFF52B788).withOpacity(0.15),
-                        blurRadius: 12, offset: const Offset(0, 3),
-                      )],
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF52B788).withOpacity(0.15),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.arrow_back_ios_new_rounded,
-                        color: Color(0xFF2D6A4F), size: 18),
+                    child: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Color(0xFF2D6A4F),
+                      size: 18,
+                    ),
                   ),
                 ),
               ),
@@ -375,7 +246,7 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   // ── Header ────────────────────────────────────────────────────────────────
-  Widget _buildHeader(Size size) {
+  Widget _buildHeader(Size size){
     final lw = size.width * 0.20;
     return FadeTransition(
       opacity: _logoFade,
@@ -427,7 +298,7 @@ class _SignupScreenState extends State<SignupScreen>
                 ).createShader(bounds);
               },
               child: Text(
-                  AppLocalizations.of(context)?.appname ?? "Greenexis",
+                  AppLocalizations.of(context)?.appname ??"Greenexis",
                   style: TextStyle(
                     fontSize: size.width * 0.093,
                     fontWeight: FontWeight.w900,
@@ -445,7 +316,7 @@ class _SignupScreenState extends State<SignupScreen>
           ]),
           const SizedBox(height: 7),
           Text(
-              AppLocalizations.of(context)?.taglinemain ?? "Smart Farming Assistant",
+              AppLocalizations.of(context)?.taglinemain ??"Smart Farming Assistant",
               style: TextStyle(
                 fontSize: size.width * 0.033,
                 color: const Color(0xFF40916C),
@@ -455,6 +326,7 @@ class _SignupScreenState extends State<SignupScreen>
       ),
     );
   }
+
 
   Widget _dLine({bool reverse = false}) => Container(
     width: 24, height: 1.5,
@@ -508,13 +380,13 @@ class _SignupScreenState extends State<SignupScreen>
                     const SizedBox(width: 12),
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(
-                          AppLocalizations.of(context)?.join ?? "Join Greenexis",
+                          AppLocalizations.of(context)?.join ??"Join Greenexis",
                           style: TextStyle(
                             fontSize: size.width * 0.055, fontWeight: FontWeight.w800,
                             color: const Color(0xFF1B4332), letterSpacing: -0.4, height: 1.1,
                           )),
                       Text(
-                          AppLocalizations.of(context)?.register ?? "Register your farm today",
+                          AppLocalizations.of(context)?.register ??"Register your farm today",
                           style: TextStyle(
                               fontSize: size.width * 0.030,
                               color: const Color(0xFF74C69D))),
@@ -522,106 +394,59 @@ class _SignupScreenState extends State<SignupScreen>
                   ]),
 
                   SizedBox(height: size.height * 0.022),
-
-                  // ── Google Sign Up Button ──────────────────────────────
-                  _googleSignupBtn(size),
-
-                  SizedBox(height: size.height * 0.018),
-
-                  // ── Divider ────────────────────────────────────────────
-                  _orDivider(),
-
-                  SizedBox(height: size.height * 0.018),
-
-                  _sectionDivider(AppLocalizations.of(context)?.personaldetails ?? "Personal Details"),
+                  _sectionDivider(AppLocalizations.of(context)?.personaldetails ??"Personal Details"),
                   SizedBox(height: size.height * 0.014),
 
                   // Full name
-                  _lbl(AppLocalizations.of(context)?.fullname ?? "Full Name"),
+                  _lbl(AppLocalizations.of(context)?.fullname ??"Full Name"),
                   const SizedBox(height: 7),
-                  _field(
-                    controller: _nameCtrl, focusNode: _nameFocus,
-                    hint: AppLocalizations.of(context)?.enterfullname ?? "Enter your full name",
-                    icon: Icons.person_outline_rounded,
+                  _field(controller: _nameCtrl, focusNode: _nameFocus,
+                    hint: AppLocalizations.of(context)?.enterfullname ??"Enter your full name", icon: Icons.person_outline_rounded,
                     action: TextInputAction.next,
                     onSubmit: (_) => FocusScope.of(context).requestFocus(_phoneFocus),
-                    validate: (v) => (v == null || v.trim().isEmpty)
-                        ? AppLocalizations.of(context)?.namerequired ?? "Name is required"
-                        : null,
+                    validate: (v) => (v == null || v.trim().isEmpty) ? AppLocalizations.of(context)?.namerequired ??"Name is required" : null,
                   ),
 
-                  SizedBox(height: size.height * 0.015),
 
-                  // Phone
-                  _lbl(AppLocalizations.of(context)?.phonenumber ?? "Phone Number"),
-                  const SizedBox(height: 7),
-                  _field(
-                    controller: _phoneCtrl, focusNode: _phoneFocus,
-                    hint: AppLocalizations.of(context)?.entermobile ?? "Enter mobile number",
-                    icon: Icons.phone_outlined,
-                    keyboardType: TextInputType.phone,
-                    action: TextInputAction.next,
-                    onSubmit: (_) => FocusScope.of(context).requestFocus(_emailFocus),
-                    validate: (v) {
-                      if (v == null || v.trim().isEmpty)
-                        return AppLocalizations.of(context)?.phonerequired ?? "Phone is required";
-                      if (v.trim().length < 10)
-                        return AppLocalizations.of(context)?.invalidphone ?? "Enter valid phone number";
-                      return null;
-                    },
-                  ),
+
 
                   SizedBox(height: size.height * 0.015),
 
                   // Email
                   _lbl(AppLocalizations.of(context)?.email ?? "Email Address"),
                   const SizedBox(height: 7),
-                  _field(
-                    controller: _emailCtrl, focusNode: _emailFocus,
-                    hint: AppLocalizations.of(context)?.enteremail ?? "Enter email address",
-                    icon: Icons.email_outlined,
+                  _field(controller: _emailCtrl, focusNode: _emailFocus,
+                    hint: AppLocalizations.of(context)?.enteremail ?? "Enter email (optional)", icon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
                     action: TextInputAction.next,
                     onSubmit: (_) => FocusScope.of(context).requestFocus(_passFocus),
                     validate: (v) {
-                      if (v == null || v.trim().isEmpty)
-                        return "Email is required";
-                      if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$').hasMatch(v.trim()))
-                        return AppLocalizations.of(context)?.invalidemail ?? "Enter valid email";
+                      if (v == null || v.isEmpty) return "Email is required";
+                      if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$').hasMatch(v)) {
+                        return "Enter valid email";
+                      }
                       return null;
                     },
                   ),
 
-                  SizedBox(height: size.height * 0.015),
 
-                  // Farm type dropdown
-                  _lbl("Farm Type"),
-                  const SizedBox(height: 7),
-                  _farmDropdown(size),
-
-                  SizedBox(height: size.height * 0.015),
-
+                  SizedBox(height: size.height * 0.014),
                   // Password
-                  _lbl(AppLocalizations.of(context)?.createpass ?? "Password"),
+                  _lbl(AppLocalizations.of(context)?.createpass ??"Password"),
                   const SizedBox(height: 7),
-                  _field(
-                    controller: _passCtrl, focusNode: _passFocus,
-                    hint: AppLocalizations.of(context)?.createpassword ?? "Create password",
-                    icon: Icons.lock_outline_rounded,
+                  _field(controller: _passCtrl, focusNode: _passFocus,
+                    hint: AppLocalizations.of(context)?.createpassword ?? "Create password", icon: Icons.lock_outline_rounded,
                     obscure: _obscurePass,
                     action: TextInputAction.next,
                     onSubmit: (_) => FocusScope.of(context).requestFocus(_cpassFocus),
                     suffix: IconButton(
-                      icon: Icon(
-                          _obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      icon: Icon(_obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                           size: 20, color: const Color(0xFF95D5B2)),
                       onPressed: () => setState(() => _obscurePass = !_obscurePass),
                     ),
                     validate: (v) {
-                      if (v == null || v.isEmpty)
-                        return AppLocalizations.of(context)?.passworderrorrequired ?? "Password is required";
-                      if (v.length < 6)
-                        return AppLocalizations.of(context)?.minpassword ?? "Minimum 6 characters";
+                      if (v == null || v.isEmpty) return AppLocalizations.of(context)?.passworderrorrequired ??  "Password is required";
+                      if (v.length < 6) return AppLocalizations.of(context)?.minpassword ??  "Minimum 6 characters";
                       return null;
                     },
                   ),
@@ -631,37 +456,34 @@ class _SignupScreenState extends State<SignupScreen>
                   // Confirm password
                   _lbl(AppLocalizations.of(context)?.confirmpassword ?? "Confirm Password"),
                   const SizedBox(height: 7),
-                  _field(
-                    controller: _cpassCtrl, focusNode: _cpassFocus,
-                    hint: AppLocalizations.of(context)?.reenterpassword ?? "Re-enter password",
-                    icon: Icons.lock_outline_rounded,
+                  _field(controller: _cpassCtrl, focusNode: _cpassFocus,
+                    hint: AppLocalizations.of(context)?.reenterpassword ?? "Re-enter password", icon: Icons.lock_outline_rounded,
                     obscure: _obscureCPass,
                     action: TextInputAction.done,
                     onSubmit: (_) => _handleSignup(),
                     suffix: IconButton(
-                      icon: Icon(
-                          _obscureCPass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      icon: Icon(_obscureCPass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                           size: 20, color: const Color(0xFF95D5B2)),
                       onPressed: () => setState(() => _obscureCPass = !_obscureCPass),
                     ),
                     validate: (v) {
-                      if (v == null || v.isEmpty)
-                        return AppLocalizations.of(context)?.confirmrequired ?? "Please confirm password";
-                      if (v != _passCtrl.text)
-                        return AppLocalizations.of(context)?.passwordmismatch ?? "Passwords do not match";
+                      if (v == null || v.isEmpty) return AppLocalizations.of(context)?.confirmrequired ?? "Please confirm password";
+                      if (v != _passCtrl.text) return AppLocalizations.of(context)?.passwordmismatch ?? "Passwords do not match";
                       return null;
                     },
                   ),
 
-                  SizedBox(height: size.height * 0.012),
+                  SizedBox(height: size.height * 0.001),
 
                   // Password strength indicator
                   _buildPasswordStrength(size),
 
-                  SizedBox(height: size.height * 0.014),
+                  SizedBox(height: size.height * 0.001),
 
-                  // Terms & Conditions checkbox
-                  _buildTermsCheckbox(size),
+                  // Terms checkbox
+
+
+
 
                   SizedBox(height: size.height * 0.022),
 
@@ -677,9 +499,8 @@ class _SignupScreenState extends State<SignupScreen>
                       child: RichText(
                         text: TextSpan(
                           style: TextStyle(
-                              fontSize: size.width * 0.036,
-                              color: const Color(0xFF74C69D)),
-                          children: [
+                              fontSize: size.width * 0.036, color: const Color(0xFF74C69D)),
+                          children: [ // Removed 'const' here
                             TextSpan(
                               text: "${AppLocalizations.of(context)?.alreadyfarmer ?? "Already a farmer?"}  ",
                             ),
@@ -704,163 +525,6 @@ class _SignupScreenState extends State<SignupScreen>
     );
   }
 
-  // ── Google Sign Up Button ──────────────────────────────────────────────
-  Widget _googleSignupBtn(Size size) => GestureDetector(
-    onTap: _googleLoading ? null : _handleGoogleSignup,
-    child: Container(
-      height: size.height * 0.064,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFB7E4C7), width: 1.5),
-        boxShadow: [BoxShadow(
-          color: const Color(0xFF52B788).withOpacity(0.10),
-          blurRadius: 12, offset: const Offset(0, 4),
-        )],
-      ),
-      child: _googleLoading
-          ? const Center(
-        child: SizedBox(
-          width: 22, height: 22,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            valueColor: AlwaysStoppedAnimation(Color(0xFF2D6A4F)),
-          ),
-        ),
-      )
-          : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        // Google "G" icon using colored text (no asset needed)
-        Container(
-          width: 24, height: 24,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white,
-            boxShadow: [BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 4,
-            )],
-          ),
-          child: const Center(
-            child: Text("G",
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF4285F4),
-                height: 1,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          "Continue with Google",
-          style: TextStyle(
-            fontSize: size.width * 0.038,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF1B4332),
-            letterSpacing: 0.2,
-          ),
-        ),
-      ]),
-    ),
-  );
-
-  // ── Or divider ─────────────────────────────────────────────────────────
-  Widget _orDivider() => Row(children: [
-    Expanded(child: Container(height: 1, color: const Color(0xFFB7E4C7).withOpacity(0.5))),
-    Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFB7E4C7), width: 1),
-      ),
-      child: const Text("OR",
-          style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w700,
-              color: Color(0xFF40916C), letterSpacing: 1.2)),
-    ),
-    Expanded(child: Container(height: 1, color: const Color(0xFFB7E4C7).withOpacity(0.5))),
-  ]);
-
-  // ── Farm type dropdown ─────────────────────────────────────────────────
-  Widget _farmDropdown(Size size) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    decoration: BoxDecoration(
-      color: Colors.white.withOpacity(0.75),
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: const Color(0xFFB7E4C7).withOpacity(0.6), width: 1.5),
-    ),
-    child: DropdownButtonHideUnderline(
-      child: DropdownButton<String>(
-        value: _selectedFarm,
-        isExpanded: true,
-        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF52B788)),
-        style: const TextStyle(
-            fontSize: 15, color: Color(0xFF1B4332), fontWeight: FontWeight.w500),
-        dropdownColor: const Color(0xFFF2FAF4),
-        borderRadius: BorderRadius.circular(14),
-        items: _farmTypes.map((f) => DropdownMenuItem(
-          value: f,
-          child: Text(f),
-        )).toList(),
-        onChanged: (v) => setState(() => _selectedFarm = v!),
-      ),
-    ),
-  );
-
-  // ── Terms checkbox ─────────────────────────────────────────────────────
-  Widget _buildTermsCheckbox(Size size) => GestureDetector(
-    onTap: () => setState(() => _agreeTerms = !_agreeTerms),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-      AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 22, height: 22,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-          color: _agreeTerms ? const Color(0xFF2D6A4F) : Colors.white,
-          border: Border.all(
-            color: _agreeTerms ? const Color(0xFF2D6A4F) : const Color(0xFFB7E4C7),
-            width: 1.5,
-          ),
-        ),
-        child: _agreeTerms
-            ? const Icon(Icons.check_rounded, color: Colors.white, size: 15)
-            : null,
-      ),
-      const SizedBox(width: 10),
-      Expanded(
-        child: RichText(
-          text: TextSpan(
-            style: TextStyle(
-                fontSize: size.width * 0.032, color: const Color(0xFF74C69D)),
-            children: const [
-              TextSpan(text: "I agree to the "),
-              TextSpan(
-                text: "Terms & Conditions",
-                style: TextStyle(
-                  color: Color(0xFF2D6A4F),
-                  fontWeight: FontWeight.w700,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-              TextSpan(text: " and "),
-              TextSpan(
-                text: "Privacy Policy",
-                style: TextStyle(
-                  color: Color(0xFF2D6A4F),
-                  fontWeight: FontWeight.w700,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ]),
-  );
-
   // ── Section divider ────────────────────────────────────────────────────────
   Widget _sectionDivider(String label) => Row(children: [
     Container(
@@ -884,8 +548,25 @@ class _SignupScreenState extends State<SignupScreen>
         color: const Color(0xFFB7E4C7).withOpacity(0.5))),
   ]);
 
+
   // ── Password strength ──────────────────────────────────────────────────────
   Widget _buildPasswordStrength(Size size) {
+    final pass = _passCtrl.text;
+    int strength = 0;
+    if (pass.length >= 6) strength++;
+    if (pass.contains(RegExp(r'[A-Z]'))) strength++;
+    if (pass.contains(RegExp(r'[0-9]'))) strength++;
+    if (pass.contains(RegExp(r'[!@#\$&*~%^]'))) strength++;
+
+    final labels = ["",  AppLocalizations.of(context)?.weak ??"Weak", AppLocalizations.of(context)?.fair ?? "Fair", AppLocalizations.of(context)?.good ?? "Good", AppLocalizations.of(context)?.strong ??"Strong"];
+    final colors = [
+      Colors.transparent,
+      const Color(0xFFE57373),
+      const Color(0xFFFFB74D),
+      const Color(0xFF81C784),
+      const Color(0xFF2D6A4F),
+    ];
+
     return AnimatedBuilder(
       animation: _passCtrl,
       builder: (_, __) {
@@ -897,17 +578,6 @@ class _SignupScreenState extends State<SignupScreen>
         if (p.contains(RegExp(r'[!@#\$&*~%^]'))) s++;
 
         if (p.isEmpty) return const SizedBox.shrink();
-
-        final labels = [
-          "", "Weak", "Fair", "Good", "Strong"
-        ];
-        final colors = [
-          Colors.transparent,
-          const Color(0xFFE57373),
-          const Color(0xFFFFB74D),
-          const Color(0xFF81C784),
-          const Color(0xFF2D6A4F),
-        ];
 
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: List.generate(4, (i) => Expanded(
@@ -1013,7 +683,7 @@ class _SignupScreenState extends State<SignupScreen>
               const Icon(Icons.agriculture_rounded, color: Colors.white, size: 20),
               const SizedBox(width: 10),
               Text(
-                  AppLocalizations.of(context)?.createaccount ?? "Create Account",
+                  AppLocalizations.of(context)?.createaccount ??"Create Account",
                   style: TextStyle(
                       fontSize: size.width * 0.042, fontWeight: FontWeight.w700,
                       color: Colors.white, letterSpacing: 0.4)),
@@ -1026,7 +696,7 @@ class _SignupScreenState extends State<SignupScreen>
 
   Widget _buildBadge() => FadeTransition(
     opacity: _cardFade,
-    child: const SizedBox.shrink(),
+
   );
 }
 

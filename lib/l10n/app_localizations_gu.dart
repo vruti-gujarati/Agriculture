@@ -45,34 +45,34 @@ class AppLocalizationsGu extends AppLocalizations {
   String get gujarati => 'ગુજરાતી';
 
   @override
-  String get titleone => 'ખેતીની આગામી પેઢી';
+  String get titleone => 'ખેતીની આગામી\nપેઢી';
 
   @override
   String get descriptionone =>
-      'અમે સ્માર્ટ ડેટા પ્રદાન કરીએ છીએ જે આધુનિક વૈશ્વિક કૃષિના લક્ષ્યોને સક્ષમ કરે છે.';
-
-  @override
-  String get titletwo => 'પાકના રોગોને સરળતાથી ઓળખો';
-
-  @override
-  String get descriptiontwo =>
-      'કેમેરાનો ઉપયોગ કરીને તમારા છોડને સ્કેન કરો અને AI દ્વારા તરત જ રોગો ઓળખો.';
-
-  @override
-  String get titlethree => 'તમારા ખેતરના સ્વાસ્થ્યને ટ્રૅક કરો';
-
-  @override
-  String get descriptionthree =>
-      'પાકનું નિરીક્ષણ કરો અને તમામ સમસ્યાઓ અને સારવારનો સંપૂર્ણ ઇતિહાસ રાખો.';
+      'અમે સ્માર્ટ ડેટા પ્રદાન કરીએ છીએ જે આધુનિક વૈશ્વિક કૃષિના લક્ષ્યોને સક્ષમ કરે છે - જમીનના સ્વાસ્થ્યથી લઈને ઉપજ સુધી, બધું એક જ જગ્યાએ.';
 
   @override
   String get smartfarming => 'સ્માર્ટ ખેતી';
 
   @override
+  String get titletwo => 'પાકના રોગોને\nસરળતાથી ઓળખો';
+
+  @override
+  String get descriptiontwo =>
+      'કોઈપણ છોડ પર તમારો કેમેરા રાખો અને તરત જ AI-આધારિત રોગની ઓળખ મેળવો. 200+ પાકના રોગોને વહેલા ઓળખો અને સારવારની ટીપ્સ મેળવો.';
+
+  @override
   String get aiscanner => 'AI સ્કેનર';
 
   @override
-  String get farmhealth => 'ખેતરનું સ્વાસ્થ્ય';
+  String get titlethree => 'તમારા ખેતરને ટ્રેક કરો\nઅને સ્માર્ટ બનો';
+
+  @override
+  String get descriptionthree =>
+      'એક સુંદર ડેશબોર્ડમાં તમારા બધા ફાર્મ એનાલિટિક્સ જુઓ. દરેક સીઝનમાં વધુ સારા નિર્ણયો લેવા માટે ભેજ, તાપમાન અને ઉપજના વલણોને ટ્રેક કરો.';
+
+  @override
+  String get farmhealth => 'ડેશબોર્ડ';
 
   @override
   String get skip => 'છોડી દો';

@@ -45,34 +45,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gujarati => 'Gujarati';
 
   @override
-  String get titleone => 'The Next Generation of Farming';
+  String get titleone => 'The Next Generation\nof Farming';
 
   @override
   String get descriptionone =>
-      'We provide smart data that enables the goals of modern global agriculture.';
-
-  @override
-  String get titletwo => 'Detect Crop Diseases Easily';
-
-  @override
-  String get descriptiontwo =>
-      'Scan your plant using the camera and identify diseases instantly with AI.';
-
-  @override
-  String get titlethree => 'Track Your Farm Health';
-
-  @override
-  String get descriptionthree =>
-      'Monitor crops and keep a full history of all issues and treatments.';
+      'We provide smart data that enables the goals of modern global agriculture — from soil health to yield optimization, all in one place.';
 
   @override
   String get smartfarming => 'Smart Farming';
 
   @override
+  String get titletwo => 'Detect Crop Diseases\nEasily';
+
+  @override
+  String get descriptiontwo =>
+      'Point your camera at any plant and get instant AI-powered disease detection. Identify 200+ crop diseases early and receive personalized treatment tips.';
+
+  @override
   String get aiscanner => 'AI Scanner';
 
   @override
-  String get farmhealth => 'Farm Health';
+  String get titlethree => 'Track Your Farm\n& Grow Smarter';
+
+  @override
+  String get descriptionthree =>
+      'View all your farm analytics in one beautiful dashboard. Track moisture, temperature, humidity and yield trends to make smarter decisions every season.';
+
+  @override
+  String get farmhealth => 'Dashboard';
 
   @override
   String get skip => 'Skip';
