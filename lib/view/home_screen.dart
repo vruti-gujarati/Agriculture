@@ -1,9 +1,8 @@
 import 'dart:convert';
-import 'dart:ui';
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -16,50 +15,27 @@ import 'calculator.dart';
 import 'weather_detail.dart';
 import 'menu_screen.dart';
 
-// ─── Design Tokens (matching splash screen) ──────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+//  Design Tokens — exact match with splash / intro / login
+// ════════════════════════════════════════════════════════════════════════════
 class _G {
-  static const bg         = Color(0xFFE8F5EE);   // exact splash bg
-  static const green950   = Color(0xFF0D2818);
-  static const green900   = Color(0xFF1B4332);
-  static const green800   = Color(0xFF2D6A4F);
-  static const green700   = Color(0xFF3A7D5A);
-  static const green600   = Color(0xFF52B788);
-  static const green400   = Color(0xFF74C69D);
-  static const green200   = Color(0xFFB7E4C7);
-  static const green100   = Color(0xFFD8F3DC);
-  static const green50    = Color(0xFFEDF7F1);
-  static const white70    = Color(0xB3FFFFFF);
-  static const white55    = Color(0x8CFFFFFF);
+  static const bg       = Color(0xFFF2FAF4);
+  static const g950     = Color(0xFF0D2818);
+  static const g900     = Color(0xFF1B4332);
+  static const g800     = Color(0xFF2D6A4F);
+  static const g700     = Color(0xFF40916C);
+  static const g600     = Color(0xFF52B788);
+  static const g400     = Color(0xFF74C69D);
+  static const g200     = Color(0xFFB7E4C7);
+  static const g100     = Color(0xFFD8F3DC);
+  static const g50      = Color(0xFFEDF7F1);
+  static const gold     = Color(0xFFFFD166);
+  static const blue     = Color(0xFF4895EF);
 }
 
-// Card definitions — glassy mint tones matching the splash palette
-const _cardGradients = <List<Color>>[
-  [Color(0xFFDDF5E8), Color(0xFFC0EDD4)], // Plant Guide – pale mint
-  [Color(0xFFF0FAF3), Color(0xFFD5F0E0)], // Crops – misty green
-  [Color(0xFFE0F4FF), Color(0xFFC2E8FF)], // Agri ChatBot – sky tint
-  [Color(0xFFFFF5E0), Color(0xFFFFE5B0)], // 7/12 Record – warm cream
-  [Color(0xFFEDE5FF), Color(0xFFD8C8FF)], // Calculator – soft lavender
-  [Color(0xFFE5FFF8), Color(0xFFC5F5E8)], // Extra – fresh aqua
-];
-
-const _cardAccents = <Color>[
-  Color(0xFF1A5C38),
-  Color(0xFF2D6A4F),
-  Color(0xFF1056A0),
-  Color(0xFF7A5200),
-  Color(0xFF4A1A9A),
-  Color(0xFF0A5C52),
-];
-
-const _cardIcons = <IconData>[
-  Icons.eco_rounded,
-  Icons.grass_rounded,
-  Icons.chat_bubble_outline_rounded,
-  Icons.description_outlined,
-  Icons.calculate_outlined,
-  Icons.map_outlined,
-];
-
+// ════════════════════════════════════════════════════════════════════════════
+//  Home Page
+// ════════════════════════════════════════════════════════════════════════════
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
   final String title;
@@ -70,475 +46,587 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
-  String temperature = "";
-  String description = "";
-  String humidity    = "";
-  String cityName    = "";
+  // ── Weather data ───────────────────────────────────────────────────────────
+  String temperature = '';
+  String description = '';
+  String humidity    = '';
+  String cityName    = '';
+  String windSpeed   = '';
 
-  late AnimationController _fadeCtrl;
-  late Animation<double>   _fadeAnim;
+  // ── Animation controllers ──────────────────────────────────────────────────
+  late AnimationController _bgCtrl;      // watercolor blob float
+  late AnimationController _leafCtrl;    // floating botanical leaves
+  late AnimationController _glowCtrl;    // pulse glow
+  late AnimationController _shimmerCtrl; // header shimmer
+  late AnimationController _entryCtrl;   // page entry
+  late AnimationController _floatCtrl;   // card float
 
-  late AnimationController _floatCtrl;
-  late Animation<double>   _floatAnim;
+  late Animation<double> _bgFloat;
+  late Animation<double> _glowPulse;
+  late Animation<double> _headerFade;
+  late Animation<Offset>  _headerSlide;
+  late Animation<double> _cardsFade;
+  late Animation<Offset>  _cardsSlide;
+  late Animation<double> _weatherFade;
+  late Animation<Offset>  _weatherSlide;
+  late Animation<double> _floatAnim;
 
-  // Leaf particle controller
-  late AnimationController _leafCtrl;
-
+  // Per-card stagger
   final List<AnimationController> _cardCtrl  = [];
   final List<Animation<Offset>>   _cardSlide = [];
   final List<Animation<double>>   _cardFade  = [];
 
-  final List<_LeafParticle> _leaves = [];
-  final math.Random _rng = math.Random();
-
-  final String apiKey = "86ccb27e8e74f234c003068b6f9228aa";
+  final String _apiKey = "86ccb27e8e74f234c003068b6f9228aa";
 
   @override
   void initState() {
     super.initState();
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
 
-    // Page fade in
-    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOutCubic);
-    _fadeCtrl.forward();
-
-    // Floating cards
-    _floatCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200))
+    // Background blob float (matches all other screens)
+    _bgCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 4000))
       ..repeat(reverse: true);
-    _floatAnim = Tween<double>(begin: 0, end: 6)
-        .animate(CurvedAnimation(parent: _floatCtrl, curve: Curves.easeInOut));
+    _bgFloat = Tween<double>(begin: 0, end: 1)
+        .animate(CurvedAnimation(parent: _bgCtrl, curve: Curves.easeInOut));
 
-    // Leaf particle drift
-    _leafCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 8000))
+    // Botanical leaf float
+    _leafCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200))
+      ..repeat(reverse: true);
+
+    // Glow pulse
+    _glowCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2000))
+      ..repeat(reverse: true);
+    _glowPulse = Tween<double>(begin: 0.6, end: 1.0)
+        .animate(CurvedAnimation(parent: _glowCtrl, curve: Curves.easeInOut));
+
+    // Shimmer
+    _shimmerCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))
       ..repeat();
 
-    // Generate leaf particles (matching splash)
-    for (int i = 0; i < 12; i++) {
-      _leaves.add(_LeafParticle(
-        startX: _rng.nextDouble(),
-        startY: _rng.nextDouble(),
-        size: 6 + _rng.nextDouble() * 10,
-        speed: 0.04 + _rng.nextDouble() * 0.06,
-        phase: _rng.nextDouble(),
-        angle: _rng.nextDouble() * math.pi * 2,
-        opacity: 0.08 + _rng.nextDouble() * 0.18,
-      ));
-    }
+    // Entry sequence
+    _entryCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
+    _headerFade  = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(parent: _entryCtrl, curve: const Interval(0.0, 0.40, curve: Curves.easeOut)));
+    _headerSlide = Tween<Offset>(begin: const Offset(0, -0.05), end: Offset.zero).animate(
+        CurvedAnimation(parent: _entryCtrl, curve: const Interval(0.0, 0.45, curve: Curves.easeOutCubic)));
+    _weatherFade  = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(parent: _entryCtrl, curve: const Interval(0.25, 0.65, curve: Curves.easeOut)));
+    _weatherSlide = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
+        CurvedAnimation(parent: _entryCtrl, curve: const Interval(0.25, 0.65, curve: Curves.easeOutCubic)));
+    _cardsFade  = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(parent: _entryCtrl, curve: const Interval(0.50, 1.0, curve: Curves.easeOut)));
+    _cardsSlide = Tween<Offset>(begin: const Offset(0, 0.10), end: Offset.zero).animate(
+        CurvedAnimation(parent: _entryCtrl, curve: const Interval(0.50, 1.0, curve: Curves.easeOutCubic)));
 
-    // Staggered card animations
+    // Floating card drift
+    _floatCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200))
+      ..repeat(reverse: true);
+    _floatAnim = Tween<double>(begin: 0, end: 5)
+        .animate(CurvedAnimation(parent: _floatCtrl, curve: Curves.easeInOut));
+
+    // Per-card stagger (6 cards)
     for (int i = 0; i < 6; i++) {
-      final ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 560));
+      final ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
       _cardCtrl.add(ctrl);
-      _cardSlide.add(
-        Tween<Offset>(begin: const Offset(0, 0.22), end: Offset.zero)
-            .animate(CurvedAnimation(parent: ctrl, curve: Curves.easeOutCubic)),
-      );
-      _cardFade.add(
-        Tween<double>(begin: 0, end: 1)
-            .animate(CurvedAnimation(parent: ctrl, curve: Curves.easeOut)),
-      );
-      Future.delayed(Duration(milliseconds: 350 + i * 90), () {
+      _cardSlide.add(Tween<Offset>(begin: const Offset(0, 0.20), end: Offset.zero)
+          .animate(CurvedAnimation(parent: ctrl, curve: Curves.easeOutCubic)));
+      _cardFade.add(Tween<double>(begin: 0, end: 1)
+          .animate(CurvedAnimation(parent: ctrl, curve: Curves.easeOut)));
+      Future.delayed(Duration(milliseconds: 500 + i * 80), () {
         if (mounted) ctrl.forward();
       });
     }
 
+    _entryCtrl.forward();
     requestLocationAndFetchWeather();
   }
 
   @override
   void dispose() {
-    _fadeCtrl.dispose();
-    _floatCtrl.dispose();
-    _leafCtrl.dispose();
+    _bgCtrl.dispose(); _leafCtrl.dispose(); _glowCtrl.dispose();
+    _shimmerCtrl.dispose(); _entryCtrl.dispose(); _floatCtrl.dispose();
     for (final c in _cardCtrl) c.dispose();
     super.dispose();
   }
 
+  // ── Weather fetch ──────────────────────────────────────────────────────────
   Future<void> requestLocationAndFetchWeather() async {
     var status = await Permission.location.status;
     if (!status.isGranted) status = await Permission.location.request();
     if (status.isGranted) {
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
       fetchWeatherByLocation(pos.latitude, pos.longitude);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Location permission denied. Enter city manually to get weather.")),
-      );
     }
   }
 
   Future<void> fetchWeatherByLocation(double lat, double lon) async {
-    final url = "https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$apiKey&units=metric";
+    final url =
+        "https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$_apiKey&units=metric";
     try {
       final res = await http.get(Uri.parse(url));
       if (res.statusCode == 200) {
         final d = jsonDecode(res.body);
         setState(() {
           cityName    = d["name"];
-          temperature = d["main"]["temp"].toString();
+          temperature = d["main"]["temp"].toStringAsFixed(1);
           description = d["weather"][0]["description"];
           humidity    = d["main"]["humidity"].toString();
+          windSpeed   = d["wind"]["speed"].toStringAsFixed(1);
         });
       }
-    } catch (e) {
-      debugPrint("Exception: $e");
-    }
+    } catch (_) {}
   }
 
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  String get _greetingEmoji {
+    final h = DateTime.now().hour;
+    if (h < 12) return '🌱';
+    if (h < 17) return '☀️';
+    return '🌙';
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  BUILD
+  // ════════════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _G.bg,
-      drawer: MenuScreen(),
-      body: Stack(
-        children: [
-          // ── Leaf particle background (matching splash) ──
-          Positioned.fill(
-            child: AnimatedBuilder(
-              animation: _leafCtrl,
-              builder: (_, __) => CustomPaint(
-                painter: _LeafParticlePainter(_leaves, _leafCtrl.value),
-              ),
+    final size = MediaQuery.of(context).size;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: _G.bg,
+        drawer: MenuScreen(),
+        body: Stack(children: [
+
+          // ── 1. Watercolor blob background (exact match with all screens) ──
+          AnimatedBuilder(
+            animation: _bgFloat,
+            builder: (_, __) => CustomPaint(
+              size: size,
+              painter: _WatercolorBgPainter(_bgFloat.value),
             ),
           ),
 
-          // ── Soft blob background ──
-          Positioned.fill(child: CustomPaint(painter: _BlobPainter())),
+          // ── 2. Floating botanical leaf particles ──────────────────────────
+          AnimatedBuilder(
+            animation: _leafCtrl,
+            builder: (_, __) => CustomPaint(
+              size: size,
+              painter: _FloatingLeafPainter(_leafCtrl.value),
+            ),
+          ),
 
+          // ── 3. Main content ───────────────────────────────────────────────
           SafeArea(
-            child: Column(
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: FadeTransition(
-                    opacity: _fadeAnim,
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 8),
-                          _buildGreetingBadge(),
-                          const SizedBox(height: 16),
-                          _buildWeatherCard(),
-                          const SizedBox(height: 28),
-                          _buildSectionLabel("Manage Your Fields"),
-                          const SizedBox(height: 14),
-                          _buildAllCards(),
-                          const SizedBox(height: 36),
-                        ],
-                      ),
+            child: Column(children: [
+              _buildHeader(size),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 10),
+                        _buildGreetingPill(size),
+                        const SizedBox(height: 18),
+                        _buildWeatherCard(size),
+                        const SizedBox(height: 26),
+                        _buildSectionLabel('Manage Your Fields', size),
+                        const SizedBox(height: 14),
+                        _buildCardGrid(size),
+                        const SizedBox(height: 40),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── HEADER ──────────────────────────────────────────────────────────────────
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Logo area — matching splash screen style
-          Row(children: [
-            // Leaf icon circle (like splash center circle, smaller)
-            Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: _G.green400.withOpacity(0.30),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.eco_rounded, color: _G.green800, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              RichText(
-                text: const TextSpan(
-                  children: [
-                    TextSpan(
-                      text: "Gr",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        color: _G.green600,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    TextSpan(
-                      text: "eenexis",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        color: _G.green900,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                "Smart Farming Assistant",
-                style: TextStyle(
-                  fontSize: 10.5,
-                  color: _G.green700.withOpacity(0.75),
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.3,
                 ),
               ),
             ]),
-          ]),
+          ),
+        ]),
+      ),
+    );
+  }
 
-          // Menu button — glassy circle
-          Builder(
-            builder: (context) => GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                Scaffold.of(context).openDrawer();
-              },
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                  child: Container(
-                    width: 42, height: 42,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.55),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: _G.green200.withOpacity(0.9), width: 1.2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _G.green400.withOpacity(0.15),
-                          blurRadius: 12,
-                          offset: const Offset(0, 3),
+  // ════════════════════════════════════════════════════════════════════════
+  //  HEADER
+  // ════════════════════════════════════════════════════════════════════════
+  Widget _buildHeader(Size size) {
+    return FadeTransition(
+      opacity: _headerFade,
+      child: SlideTransition(
+        position: _headerSlide,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+
+              // Logo — glassmorphism circle + shimmer text (same as splash/login)
+              Row(children: [
+                AnimatedBuilder(
+                  animation: _glowPulse,
+                  builder: (_, __) => ClipOval(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.55),
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.85), width: 1.5),
+                          boxShadow: [BoxShadow(
+                            color: _G.g600.withOpacity(0.18 + 0.10 * _glowPulse.value),
+                            blurRadius: 14 + 8 * _glowPulse.value,
+                            spreadRadius: 1,
+                          )],
                         ),
-                      ],
+                        child: Center(
+                          child: Transform.scale(
+                            scale: 0.92 + 0.08 * _glowPulse.value,
+                            child: const Icon(Icons.eco_rounded,
+                                color: _G.g800, size: 22),
+                          ),
+                        ),
+                      ),
                     ),
-                    child: const Icon(Icons.menu_rounded, color: _G.green800, size: 20),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  AnimatedBuilder(
+                    animation: _shimmerCtrl,
+                    builder: (_, __) => ShaderMask(
+                      blendMode: BlendMode.srcIn,
+                      shaderCallback: (bounds) {
+                        final x = _shimmerCtrl.value * (bounds.width + 120) - 60;
+                        return LinearGradient(
+                          colors: const [
+                            _G.g900, _G.g800, _G.g600,
+                            Color(0xFFB7E4C7), _G.g600, _G.g800, _G.g900,
+                          ],
+                          stops: const [0.0, 0.18, 0.36, 0.50, 0.64, 0.82, 1.0],
+                          begin: Alignment((x / bounds.width) * 2 - 1, 0),
+                          end:   Alignment((x / bounds.width) * 2 + 1, 0),
+                        ).createShader(bounds);
+                      },
+                      child: Text(
+                        'Greenexis',
+                        style: TextStyle(
+                          fontSize: size.width * 0.065,
+                          fontWeight: FontWeight.w900,
+                          color: _G.g900,
+                          letterSpacing: -1.0,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Smart Farming Assistant',
+                    style: TextStyle(
+                      fontSize: size.width * 0.028,
+                      color: _G.g700.withOpacity(0.72),
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ]),
+              ]),
+
+              // Hamburger — glassy, exact match with login card style
+              Builder(
+                builder: (ctx) => GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Scaffold.of(ctx).openDrawer();
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                      child: Container(
+                        width: 44, height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.60),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.85), width: 1.2),
+                          boxShadow: [BoxShadow(
+                            color: _G.g600.withOpacity(0.15),
+                            blurRadius: 12, offset: const Offset(0, 3),
+                          )],
+                        ),
+                        child: const Icon(Icons.menu_rounded, color: _G.g800, size: 20),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-
-  // ── GREETING BADGE (matches splash "v1.0 • Made for Farmers" pill style) ──
-  Widget _buildGreetingBadge() {
-    final hour = DateTime.now().hour;
-    final greeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
-    final emoji = hour < 12 ? "🌱" : hour < 17 ? "☀️" : "🌙";
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(30),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.45),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: _G.green200.withOpacity(0.8), width: 1),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(emoji, style: const TextStyle(fontSize: 14)),
-            const SizedBox(width: 8),
-            Text(
-              "$greeting, Farmer",
-              style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: _G.green800,
-                letterSpacing: 0.2,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(width: 4, height: 4, decoration: const BoxDecoration(color: _G.green600, shape: BoxShape.circle)),
-            const SizedBox(width: 8),
-            Text(
-              "Grow smarter. Farm better.",
-              style: TextStyle(
-                fontSize: 11,
-                color: _G.green700.withOpacity(0.70),
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ]),
         ),
       ),
     );
   }
 
-  // ── SECTION LABEL ────────────────────────────────────────────────────────────
-  Widget _buildSectionLabel(String text) {
-    return Row(children: [
-      Container(
-        width: 3.5, height: 20,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [_G.green700, _G.green400],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-          borderRadius: BorderRadius.circular(2),
-        ),
-      ),
-      const SizedBox(width: 10),
-      Text(
-        text,
-        style: const TextStyle(
-          fontSize: 15.5,
-          fontWeight: FontWeight.w800,
-          color: _G.green900,
-          letterSpacing: 0.1,
-        ),
-      ),
-    ]);
-  }
-
-  // ── WEATHER CARD ─────────────────────────────────────────────────────────────
-  Widget _buildWeatherCard() {
-    return _TapCard(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => WeatherDetailPage(
-            cityName: cityName,
-            temperature: temperature,
-            description: description,
-            humidity: humidity,
-          ),
-        ),
-      ),
+  // ════════════════════════════════════════════════════════════════════════
+  //  GREETING PILL (matches splash bottom badge style)
+  // ════════════════════════════════════════════════════════════════════════
+  Widget _buildGreetingPill(Size size) {
+    return FadeTransition(
+      opacity: _headerFade,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
-            width: double.infinity,
-            height: 155,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
             decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.58),
               borderRadius: BorderRadius.circular(28),
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white.withOpacity(0.55),
-                  _G.green100.withOpacity(0.40),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              border: Border.all(color: Colors.white.withOpacity(0.75), width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: _G.green600.withOpacity(0.15),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+              border: Border.all(color: Colors.white.withOpacity(0.82), width: 1.2),
+              boxShadow: [BoxShadow(
+                color: _G.g600.withOpacity(0.10),
+                blurRadius: 12, offset: const Offset(0, 3),
+              )],
             ),
-            child: Stack(
-              children: [
-                // Decorative leaf circle (splash motif)
-                Positioned(
-                  right: -20, top: -20,
-                  child: Container(
-                    width: 110, height: 110,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _G.green200.withOpacity(0.25),
-                    ),
-                  ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(_greetingEmoji, style: const TextStyle(fontSize: 14)),
+              const SizedBox(width: 8),
+              Text(
+                '$_greeting, Farmer',
+                style: TextStyle(
+                  fontSize: size.width * 0.034,
+                  fontWeight: FontWeight.w700,
+                  color: _G.g900,
+                  letterSpacing: 0.1,
                 ),
-                Positioned(
-                  right: 10, top: 10,
-                  child: Container(
-                    width: 54, height: 54,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.55),
-                      border: Border.all(color: _G.green200.withOpacity(0.6), width: 1),
-                    ),
-                    child: const Icon(Icons.wb_sunny_outlined, color: _G.green700, size: 26),
-                  ),
+              ),
+              const SizedBox(width: 10),
+              Container(width: 4, height: 4,
+                  decoration: const BoxDecoration(color: _G.g600, shape: BoxShape.circle)),
+              const SizedBox(width: 10),
+              Text(
+                'Grow smarter. Farm better.',
+                style: TextStyle(
+                  fontSize: size.width * 0.028,
+                  color: _G.g700.withOpacity(0.72),
+                  fontWeight: FontWeight.w400,
                 ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
 
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(children: [
-                        Text(
-                          temperature.isEmpty ? "Loading..." : "${temperature}°C",
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w800,
-                            color: _G.green900,
-                            height: 1,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(
-                            cityName.isEmpty ? "Locating..." : cityName,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: _G.green800,
-                            ),
-                          ),
-                          Text(
-                            description.isEmpty ? "Fetching weather..." : _capitalize(description),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: _G.green700.withOpacity(0.70),
-                            ),
-                          ),
-                        ]),
-                      ]),
-                      const Spacer(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _WeatherPill(
-                            icon: Icons.water_drop_outlined,
-                            label: "Humidity",
-                            value: humidity.isEmpty ? "--" : "$humidity%",
-                          ),
-                          _WeatherPill(icon: Icons.grass_outlined, label: "Soil", value: "Good"),
-                          _WeatherPill(icon: Icons.umbrella_outlined, label: "Rain", value: "Low"),
-                          // Tap hint
-                          Container(
-                            padding: const EdgeInsets.all(7),
-                            decoration: BoxDecoration(
-                              color: _G.green700.withOpacity(0.10),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.arrow_forward_ios_rounded, color: _G.green800, size: 11),
-                          ),
-                        ],
+  // ════════════════════════════════════════════════════════════════════════
+  //  WEATHER CARD — rich, botanical, glassmorphic
+  // ════════════════════════════════════════════════════════════════════════
+  Widget _buildWeatherCard(Size size) {
+    return FadeTransition(
+      opacity: _weatherFade,
+      child: SlideTransition(
+        position: _weatherSlide,
+        child: _TapCard(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => WeatherDetailPage(
+              cityName: cityName, temperature: temperature,
+              description: description, humidity: humidity,
+            )),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: AnimatedBuilder(
+                animation: _glowPulse,
+                builder: (_, __) => Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.72),
+                        _G.g100.withOpacity(0.50),
+                        _G.g200.withOpacity(0.30),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    border: Border.all(
+                        color: Colors.white.withOpacity(0.85), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _G.g600.withOpacity(0.12 + 0.06 * _glowPulse.value),
+                        blurRadius: 28, offset: const Offset(0, 8),
                       ),
                     ],
                   ),
+                  child: Stack(children: [
+
+                    // Decorative blobs inside card
+                    Positioned(top: -24, right: -24, child: Container(
+                      width: 100, height: 100,
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _G.g200.withOpacity(0.40)),
+                    )),
+                    Positioned(top: 8, right: 8, child: ClipOval(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        child: Container(
+                          width: 52, height: 52,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.60),
+                            border: Border.all(
+                                color: _G.g200.withOpacity(0.80), width: 1.2),
+                          ),
+                          child: const Icon(Icons.wb_sunny_outlined,
+                              color: _G.g800, size: 26),
+                        ),
+                      ),
+                    )),
+
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Location row
+                        Row(children: [
+                          Icon(Icons.location_on_rounded,
+                              color: _G.g600, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            cityName.isEmpty ? 'Locating...' : cityName,
+                            style: TextStyle(
+                              fontSize: size.width * 0.032,
+                              color: _G.g700,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ]),
+                        const SizedBox(height: 10),
+
+                        // Temperature + description
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              temperature.isEmpty ? '--' : '${temperature}°',
+                              style: TextStyle(
+                                fontSize: size.width * 0.155,
+                                fontWeight: FontWeight.w800,
+                                color: _G.g900,
+                                height: 1.0,
+                                letterSpacing: -2,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                'C',
+                                style: TextStyle(
+                                  fontSize: size.width * 0.055,
+                                  fontWeight: FontWeight.w700,
+                                  color: _G.g700,
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                          ],
+                        ),
+
+                        Text(
+                          description.isEmpty ? 'Fetching weather...' : _capitalize(description),
+                          style: TextStyle(
+                            fontSize: size.width * 0.035,
+                            color: _G.g700.withOpacity(0.80),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        // Thin divider
+                        Container(
+                          height: 1,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [
+                              Colors.transparent,
+                              _G.g200.withOpacity(0.80),
+                              Colors.transparent,
+                            ]),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Stat pills row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _WeatherStatPill(
+                              icon: Icons.water_drop_outlined,
+                              label: 'Humidity',
+                              value: humidity.isEmpty ? '--' : '$humidity%',
+                            ),
+                            _WeatherStatPill(
+                              icon: Icons.air_rounded,
+                              label: 'Wind',
+                              value: windSpeed.isEmpty ? '--' : '${windSpeed}m/s',
+                            ),
+                            _WeatherStatPill(
+                              icon: Icons.grass_outlined,
+                              label: 'Soil',
+                              value: 'Good',
+                            ),
+                            _WeatherStatPill(
+                              icon: Icons.umbrella_outlined,
+                              label: 'Rain',
+                              value: 'Low',
+                            ),
+                            // Tap arrow
+                            ClipOval(
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                                child: Container(
+                                  width: 32, height: 32,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _G.g800.withOpacity(0.10),
+                                    border: Border.all(
+                                        color: _G.g200.withOpacity(0.60), width: 1),
+                                  ),
+                                  child: const Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      color: _G.g800, size: 13),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ]),
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -546,73 +634,64 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     );
   }
 
-  // ── GRID CARDS ───────────────────────────────────────────────────────────────
-  Widget _buildAllCards() {
-    final items = [
-      _CardItem(
-        title: "Plant Guide",
-        subtitle: "Diagnose plants",
-        imagePath: "assets/home_screen/plant_guide.png",
-        icon: _cardIcons[0],
-        gradientColors: _cardGradients[0],
-        accentColor: _cardAccents[0],
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlantGuide())),
-      ),
-      _CardItem(
-        title: "Crops",
-        subtitle: "Browse varieties",
-        imagePath: "assets/home_screen/crops.png",
-        icon: _cardIcons[1],
-        gradientColors: _cardGradients[1],
-        accentColor: _cardAccents[1],
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Crops(userLocation: cityName))),
-      ),
-      _CardItem(
-        title: "Agri ChatBot",
-        subtitle: "Ask anything",
-        imagePath: "assets/home_screen/agrichatbot.png",
-        icon: _cardIcons[2],
-        gradientColors: _cardGradients[2],
-        accentColor: _cardAccents[2],
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AgriChatBot())),
-      ),
-      _CardItem(
-        title: "7/12 Record",
-        subtitle: "Land documents",
-        imagePath: "assets/home_screen/info712.png",
-        icon: _cardIcons[3],
-        gradientColors: _cardGradients[3],
-        accentColor: _cardAccents[3],
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandMap())),
-      ),
-      _CardItem(
-        title: "Calculator",
-        subtitle: "Costs & yield",
-        imagePath: "assets/home_screen/calculator.png",
-        icon: _cardIcons[4],
-        gradientColors: _cardGradients[4],
-        accentColor: _cardAccents[4],
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const Calculator())),
-      ),
-      _CardItem(
-        title: "Land Map",
-        subtitle: "View your land",
-        imagePath: "assets/home_screen/calculator.png",
-        icon: _cardIcons[5],
-        gradientColors: _cardGradients[5],
-        accentColor: _cardAccents[5],
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandMap())),
-      ),
-    ];
+  // ════════════════════════════════════════════════════════════════════════
+  //  SECTION LABEL — same decorative divider style as intro/login screens
+  // ════════════════════════════════════════════════════════════════════════
+  Widget _buildSectionLabel(String text, Size size) {
+    return FadeTransition(
+      opacity: _cardsFade,
+      child: Row(children: [
+        Container(
+          width: 3.5, height: 22,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [_G.g800, _G.g400],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: size.width * 0.045,
+            fontWeight: FontWeight.w800,
+            color: _G.g900,
+            letterSpacing: -0.3,
+          ),
+        ),
+        const Spacer(),
+        // Decorative dot row (matches intro divider dots)
+        Row(children: [
+          Container(width: 20, height: 1.5,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Colors.transparent, _G.g400]),
+              borderRadius: BorderRadius.circular(1),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(width: 5, height: 5,
+              decoration: const BoxDecoration(color: _G.g600, shape: BoxShape.circle)),
+        ]),
+      ]),
+    );
+  }
 
+  // ════════════════════════════════════════════════════════════════════════
+  //  CARD GRID
+  // ════════════════════════════════════════════════════════════════════════
+  Widget _buildCardGrid(Size size) {
+    final cards = _cardItems(context);
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
-      crossAxisSpacing: 13,
-      mainAxisSpacing: 13,
-      childAspectRatio: 1.0,
-      children: List.generate(items.length, (i) {
+      crossAxisSpacing: 14,
+      mainAxisSpacing: 14,
+      childAspectRatio: 0.96,
+      children: List.generate(cards.length, (i) {
         return SlideTransition(
           position: _cardSlide[i],
           child: FadeTransition(
@@ -620,12 +699,12 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             child: AnimatedBuilder(
               animation: _floatAnim,
               builder: (_, child) => Transform.translate(
-                offset: Offset(0, i.isEven ? -_floatAnim.value * 0.35 : _floatAnim.value * 0.35),
+                offset: Offset(0, i.isEven ? -_floatAnim.value * 0.30 : _floatAnim.value * 0.30),
                 child: child,
               ),
               child: _TapCard(
-                onTap: items[i].onTap,
-                child: _buildCardShell(items[i]),
+                onTap: cards[i].onTap,
+                child: _buildCardShell(cards[i], size),
               ),
             ),
           ),
@@ -634,180 +713,155 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCardShell(_CardItem item) {
+  // ── Single card shell with glassmorphism + botanical orb ─────────────────
+  Widget _buildCardShell(_CardItem item, Size size) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
             gradient: LinearGradient(
               colors: item.gradientColors,
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withOpacity(0.80), width: 1.4),
+            border: Border.all(color: Colors.white.withOpacity(0.82), width: 1.4),
             boxShadow: [
               BoxShadow(
-                color: item.accentColor.withOpacity(0.12),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                color: item.accentColor.withOpacity(0.14),
+                blurRadius: 18, offset: const Offset(0, 6),
               ),
               BoxShadow(
-                color: Colors.white.withOpacity(0.85),
-                blurRadius: 0,
-                offset: const Offset(0, -1),
+                color: Colors.white.withOpacity(0.80),
+                blurRadius: 0, offset: const Offset(0, -1),
               ),
             ],
           ),
-          child: Stack(
-            children: [
-              // Decorative orb top-right (like splash leaf aura)
-              Positioned(
-                top: -22, right: -22,
-                child: Container(
-                  width: 80, height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.28),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: -8, right: -8,
-                child: Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.22),
-                  ),
-                ),
-              ),
+          child: Stack(children: [
 
-              // Card content
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Icon in glassy circle
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(15),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                        child: Container(
-                          width: 52, height: 52,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.60),
-                            borderRadius: BorderRadius.circular(15),
-                            boxShadow: [
-                              BoxShadow(
-                                color: item.accentColor.withOpacity(0.12),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Image.asset(
-                            item.imagePath,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Icon(item.icon, color: item.accentColor, size: 26),
-                          ),
+            // Decorative blob orb (matches splash botanical aura)
+            Positioned(top: -26, right: -26, child: Container(
+              width: 88, height: 88,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.30),
+              ),
+            )),
+            Positioned(top: -10, right: -10, child: Container(
+              width: 48, height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.22),
+              ),
+            )),
+
+            // Bottom left micro spiral dot (matches splash dot pattern)
+            Positioned(bottom: 10, left: 14, child: Row(children: [
+              Container(width: 4, height: 4,
+                  decoration: BoxDecoration(color: item.accentColor.withOpacity(0.25), shape: BoxShape.circle)),
+              const SizedBox(width: 4),
+              Container(width: 3, height: 3,
+                  decoration: BoxDecoration(color: item.accentColor.withOpacity(0.15), shape: BoxShape.circle)),
+              const SizedBox(width: 3),
+              Container(width: 2, height: 2,
+                  decoration: BoxDecoration(color: item.accentColor.withOpacity(0.10), shape: BoxShape.circle)),
+            ])),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+
+                  // Icon circle (glassmorphism like login field icons)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                      child: Container(
+                        width: 54, height: 54,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.68),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.90), width: 1.2),
+                          boxShadow: [BoxShadow(
+                            color: item.accentColor.withOpacity(0.14),
+                            blurRadius: 8, offset: const Offset(0, 3),
+                          )],
+                        ),
+                        child: Center(
+                          child: Icon(item.icon, color: item.accentColor, size: 26),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      item.title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                        color: item.accentColor,
-                        letterSpacing: 0.1,
-                        height: 1.1,
-                      ),
+                  ),
+
+                  const Spacer(),
+
+                  // Title
+                  Text(
+                    item.title,
+                    style: TextStyle(
+                      fontSize: size.width * 0.040,
+                      fontWeight: FontWeight.w800,
+                      color: item.accentColor,
+                      letterSpacing: -0.2,
+                      height: 1.1,
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      item.subtitle,
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: item.accentColor.withOpacity(0.58),
-                        fontWeight: FontWeight.w500,
-                      ),
+                  ),
+                  const SizedBox(height: 3),
+
+                  // Subtitle
+                  Text(
+                    item.subtitle,
+                    style: TextStyle(
+                      fontSize: size.width * 0.029,
+                      color: item.accentColor.withOpacity(0.60),
+                      fontWeight: FontWeight.w500,
+                      height: 1.3,
                     ),
-                    const Spacer(),
-                    // Bottom arrow — like the splash bottom badge
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Container(
-                          width: 26, height: 26,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Arrow pill (matches intro badge pill)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
                             color: item.accentColor.withOpacity(0.10),
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: item.accentColor.withOpacity(0.20), width: 1),
                           ),
-                          child: Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            color: item.accentColor,
-                            size: 11,
-                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Text(
+                              'Open',
+                              style: TextStyle(
+                                fontSize: size.width * 0.026,
+                                fontWeight: FontWeight.w700,
+                                color: item.accentColor,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(Icons.arrow_forward_rounded,
+                                color: item.accentColor, size: 11),
+                          ]),
                         ),
-                      ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _capitalize(String s) =>
-      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
-}
-
-// ── WEATHER PILL (glassy, matching splash pill "v1.0 • Made for Farmers") ─────
-class _WeatherPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _WeatherPill({required this.icon, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.55),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _G.green200.withOpacity(0.7), width: 1),
-          ),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, color: _G.green700, size: 13),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: const TextStyle(
-                color: _G.green900,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              label,
-              style: TextStyle(
-                color: _G.green700.withOpacity(0.65),
-                fontSize: 9,
-                fontWeight: FontWeight.w500,
+                  ),
+                ],
               ),
             ),
           ]),
@@ -815,9 +869,109 @@ class _WeatherPill extends StatelessWidget {
       ),
     );
   }
+
+  List<_CardItem> _cardItems(BuildContext ctx) => [
+    _CardItem(
+      title: 'Plant Guide',
+      subtitle: 'Diagnose & identify plants',
+      icon: Icons.eco_rounded,
+      gradientColors: [const Color(0xFFDDF5E8), const Color(0xFFC0EDD4)],
+      accentColor: const Color(0xFF1A5C38),
+      onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => const PlantGuide())),
+    ),
+    _CardItem(
+      title: 'Crops',
+      subtitle: 'Browse crop varieties',
+      icon: Icons.grass_rounded,
+      gradientColors: [const Color(0xFFF0FAF3), const Color(0xFFD5F0E0)],
+      accentColor: const Color(0xFF2D6A4F),
+      onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => Crops(userLocation: cityName))),
+    ),
+    _CardItem(
+      title: 'Agri ChatBot',
+      subtitle: 'AI farming assistant',
+      icon: Icons.chat_bubble_outline_rounded,
+      gradientColors: [const Color(0xFFE0F4FF), const Color(0xFFC2E8FF)],
+      accentColor: const Color(0xFF0D5E9E),
+      onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => const AgriChatBot())),
+    ),
+    _CardItem(
+      title: '7/12 Record',
+      subtitle: 'Land ownership docs',
+      icon: Icons.description_outlined,
+      gradientColors: [const Color(0xFFFFF8E8), const Color(0xFFFFECC2)],
+      accentColor: const Color(0xFF7A5200),
+      onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => const LandMap())),
+    ),
+    _CardItem(
+      title: 'Calculator',
+      subtitle: 'Costs, yield & profits',
+      icon: Icons.calculate_outlined,
+      gradientColors: [const Color(0xFFEDE5FF), const Color(0xFFD8C8FF)],
+      accentColor: const Color(0xFF4A1A9A),
+      onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => const Calculator())),
+    ),
+    _CardItem(
+      title: 'Land Map',
+      subtitle: 'View & track your land',
+      icon: Icons.map_outlined,
+      gradientColors: [const Color(0xFFE5FFF8), const Color(0xFFC5F5E8)],
+      accentColor: const Color(0xFF0A5C52),
+      onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => const LandMap())),
+    ),
+  ];
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 }
 
-// ── TAP CARD with press animation ──────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+//  Weather Stat Pill (matches splash badge pill + intro feature chips)
+// ════════════════════════════════════════════════════════════════════════════
+class _WeatherStatPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _WeatherStatPill({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.58),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: _G.g200.withOpacity(0.75), width: 1),
+            boxShadow: [BoxShadow(
+              color: _G.g600.withOpacity(0.08),
+              blurRadius: 6, offset: const Offset(0, 2),
+            )],
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, color: _G.g700, size: 13),
+            const SizedBox(height: 3),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700, color: _G.g900)),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 9,
+                    color: _G.g700.withOpacity(0.65),
+                    fontWeight: FontWeight.w500)),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Tap Card — press scale with spring reverse (matches all screen buttons)
+// ════════════════════════════════════════════════════════════════════════════
 class _TapCard extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
@@ -836,31 +990,22 @@ class _TapCardState extends State<_TapCard> with SingleTickerProviderStateMixin 
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 130),
-      reverseDuration: const Duration(milliseconds: 280),
+      duration: const Duration(milliseconds: 120),
+      reverseDuration: const Duration(milliseconds: 320),
     );
-    _scale = Tween<double>(begin: 1.0, end: 0.94)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeIn, reverseCurve: _SpringOut()));
+    _scale = Tween<double>(begin: 1.0, end: 0.94).animate(
+        CurvedAnimation(parent: _ctrl, curve: Curves.easeIn));
   }
 
   @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _ctrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTapDown: (_) {
-        HapticFeedback.lightImpact();
-        _ctrl.forward();
-      },
-      onTapUp: (_) {
-        widget.onTap();
-        _ctrl.reverse();
-      },
+      onTapDown: (_) { HapticFeedback.lightImpact(); _ctrl.forward(); },
+      onTapUp:   (_) { widget.onTap(); _ctrl.reverse(); },
       onTapCancel: () => _ctrl.reverse(),
       child: AnimatedBuilder(
         animation: _scale,
@@ -871,109 +1016,151 @@ class _TapCardState extends State<_TapCard> with SingleTickerProviderStateMixin 
   }
 }
 
-class _SpringOut extends Curve {
-  @override
-  double transformInternal(double t) =>
-      1.0 - math.exp(-6.5 * t) * math.cos(11.0 * t);
-}
-
-// ── CARD ITEM ──────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+//  Card Item Data Model
+// ════════════════════════════════════════════════════════════════════════════
 class _CardItem {
   final String title;
   final String subtitle;
-  final String imagePath;
   final IconData icon;
   final List<Color> gradientColors;
   final Color accentColor;
   final VoidCallback onTap;
   const _CardItem({
-    required this.title,
-    required this.subtitle,
-    required this.imagePath,
-    required this.icon,
-    required this.gradientColors,
-    required this.accentColor,
-    required this.onTap,
+    required this.title, required this.subtitle, required this.icon,
+    required this.gradientColors, required this.accentColor, required this.onTap,
   });
 }
 
-// ── LEAF PARTICLE (matching splash floating leaves) ──────────────────────────
-class _LeafParticle {
-  final double startX;
-  final double startY;
-  final double size;
-  final double speed;
-  final double phase;
-  final double angle;
-  final double opacity;
-  const _LeafParticle({
-    required this.startX,
-    required this.startY,
-    required this.size,
-    required this.speed,
-    required this.phase,
-    required this.angle,
-    required this.opacity,
-  });
-}
-
-class _LeafParticlePainter extends CustomPainter {
-  final List<_LeafParticle> leaves;
+// ════════════════════════════════════════════════════════════════════════════
+//  Watercolor Background Painter (exact copy from splash / intro / login)
+// ════════════════════════════════════════════════════════════════════════════
+class _WatercolorBgPainter extends CustomPainter {
   final double t;
-  const _LeafParticlePainter(this.leaves, this.t);
+  _WatercolorBgPainter(this.t);
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (final leaf in leaves) {
-      final progress = (t * leaf.speed + leaf.phase) % 1.0;
-      final x = (leaf.startX + math.sin(progress * math.pi * 2 + leaf.phase) * 0.06) * size.width;
-      final y = (leaf.startY - progress * 0.3 + 0.3) % 1.0 * size.height;
-      final rotation = leaf.angle + progress * math.pi * 2;
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height),
+        Paint()..color = const Color(0xFFF2FAF4));
 
-      final paint = Paint()
-        ..color = _G.green600.withOpacity(leaf.opacity * (1 - (progress > 0.85 ? (progress - 0.85) / 0.15 : 0)))
-        ..style = PaintingStyle.fill;
+    final blobs = [
+      _Blob(
+        center: Offset(
+          size.width  * (0.80 + 0.04 * math.sin(t * math.pi)),
+          size.height * (0.10 + 0.03 * math.cos(t * math.pi * 1.3)),
+        ),
+        radius: size.width * 0.55,
+        color: const Color(0xFFB7E4C7).withOpacity(0.38),
+        blur: 80,
+      ),
+      _Blob(
+        center: Offset(
+          size.width  * (0.10 + 0.03 * math.cos(t * math.pi * 0.9)),
+          size.height * (0.22 + 0.04 * math.sin(t * math.pi * 1.1)),
+        ),
+        radius: size.width * 0.48,
+        color: const Color(0xFF95D5B2).withOpacity(0.28),
+        blur: 70,
+      ),
+      _Blob(
+        center: Offset(
+          size.width  * (0.70 + 0.05 * math.sin(t * math.pi * 1.2)),
+          size.height * (0.55 + 0.04 * math.cos(t * math.pi * 0.8)),
+        ),
+        radius: size.width * 0.42,
+        color: const Color(0xFF74C69D).withOpacity(0.22),
+        blur: 65,
+      ),
+      _Blob(
+        center: Offset(
+          size.width  * (0.15 + 0.03 * math.sin(t * math.pi * 1.4)),
+          size.height * (0.75 + 0.03 * math.cos(t * math.pi)),
+        ),
+        radius: size.width * 0.40,
+        color: const Color(0xFFD8F3DC).withOpacity(0.45),
+        blur: 60,
+      ),
+      _Blob(
+        center: Offset(
+          size.width  * (0.50 + 0.02 * math.cos(t * math.pi * 1.6)),
+          size.height * (0.90 + 0.02 * math.sin(t * math.pi)),
+        ),
+        radius: size.width * 0.38,
+        color: const Color(0xFF52B788).withOpacity(0.14),
+        blur: 55,
+      ),
+    ];
+
+    for (final b in blobs) {
+      canvas.drawCircle(b.center, b.radius,
+          Paint()..color = b.color
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, b.blur));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WatercolorBgPainter old) => old.t != t;
+}
+
+class _Blob {
+  final Offset center;
+  final double radius;
+  final Color color;
+  final double blur;
+  const _Blob({required this.center, required this.radius,
+    required this.color, required this.blur});
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Floating Leaf Particles Painter (exact copy from all other screens)
+// ════════════════════════════════════════════════════════════════════════════
+class _FloatingLeafPainter extends CustomPainter {
+  final double t;
+  _FloatingLeafPainter(this.t);
+
+  static const _seeds = [
+    [0.08, 0.15, 0.7, 0.0],
+    [0.88, 0.08, 1.1, 0.3],
+    [0.15, 0.78, 0.9, 0.6],
+    [0.82, 0.70, 0.6, 0.9],
+    [0.45, 0.05, 1.3, 0.15],
+    [0.60, 0.88, 0.8, 0.45],
+    [0.05, 0.50, 1.0, 0.75],
+    [0.92, 0.45, 0.7, 0.55],
+    [0.33, 0.35, 0.8, 0.22],
+    [0.70, 0.62, 1.0, 0.68],
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const colors = [
+      Color(0xFF52B788), Color(0xFF74C69D),
+      Color(0xFF40916C), Color(0xFFB7E4C7),
+    ];
+
+    for (int i = 0; i < _seeds.length; i++) {
+      final s  = _seeds[i];
+      final ph = (t + s[3]) % 1.0;
+      final x  = s[0] * size.width  + 14 * math.sin(ph * math.pi * 2 * s[2]);
+      final y  = s[1] * size.height + 10 * math.cos(ph * math.pi * 2 * s[2] * 0.8);
+      final r  = 5.0 + 3 * math.sin(ph * math.pi);
+      final op = 0.18 + 0.14 * math.sin(ph * math.pi * 2);
 
       canvas.save();
       canvas.translate(x, y);
-      canvas.rotate(rotation);
-      _drawLeaf(canvas, leaf.size, paint);
+      canvas.rotate(ph * math.pi * 2 * (i.isEven ? 1 : -1));
+      canvas.drawPath(
+        Path()
+          ..moveTo(0, 0)
+          ..cubicTo(-r * 0.6, -r * 0.9, -r * 0.4, -r * 1.8, 0, -r * 2.2)
+          ..cubicTo(r * 0.4, -r * 1.8, r * 0.6, -r * 0.9, 0, 0),
+        Paint()..color = colors[i % 4].withOpacity(op),
+      );
       canvas.restore();
     }
   }
 
-  void _drawLeaf(Canvas canvas, double s, Paint paint) {
-    final path = Path()
-      ..moveTo(0, -s)
-      ..cubicTo(s * 0.6, -s * 0.5, s * 0.6, s * 0.5, 0, s)
-      ..cubicTo(-s * 0.6, s * 0.5, -s * 0.6, -s * 0.5, 0, -s)
-      ..close();
-    canvas.drawPath(path, paint);
-  }
-
   @override
-  bool shouldRepaint(_LeafParticlePainter old) => old.t != t;
-}
-
-// ── BLOB BACKGROUND (soft, matching splash glow) ──────────────────────────────
-class _BlobPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    void blob(Offset c, double r, Color col) {
-      canvas.drawCircle(c, r, Paint()
-        ..color = col
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 70));
-    }
-    blob(Offset(size.width * 0.85, size.height * 0.08), size.width * 0.55,
-        const Color(0xFFB7E4C7).withOpacity(0.32));
-    blob(Offset(size.width * 0.10, size.height * 0.22), size.width * 0.44,
-        const Color(0xFFD8F3DC).withOpacity(0.26));
-    blob(Offset(size.width * 0.65, size.height * 0.55), size.width * 0.40,
-        const Color(0xFFB7E4C7).withOpacity(0.22));
-    blob(Offset(size.width * 0.20, size.height * 0.78), size.width * 0.38,
-        const Color(0xFFD8F3DC).withOpacity(0.18));
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
+  bool shouldRepaint(_FloatingLeafPainter old) => old.t != t;
 }

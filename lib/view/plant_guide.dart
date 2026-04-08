@@ -8,7 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:dotted_border/dotted_border.dart';
 
-const String geminiApiKey = "AIzaSyAmUnyYi8f_1XRhr7RAOiybATh-8anv5xM";
+const String geminiApiKey = "";
 
 // ─── Design Tokens ────────────────────────────────────────────────
 class _C {
